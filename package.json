@@ -1,0 +1,16 @@
+{
+  "name": "pop-a-bobba",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pop A Bobba - milk tea bubble shooter",
+  "scripts": {
+    "sync": "cap sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}

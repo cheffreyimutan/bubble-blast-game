@@ -41,7 +41,7 @@
   .fredoka { font-family: 'Fredoka', system-ui, sans-serif; }
   .chewy { font-family: 'Chewy', system-ui, sans-serif; }
   #wrap {
-    position: relative; width: 480px; height: 720px;
+    position: relative; width: 390px; height: 844px;
     background: linear-gradient(180deg, var(--cream1) 0%, var(--cream2) 55%, var(--cream3) 100%);
     color: var(--ink);
     transform-origin: center center; flex-shrink: 0;
@@ -625,11 +625,11 @@
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const W = 480, H = 720;
+const W = 390, H = 844;
 canvas.width = W; canvas.height = H;
 
 const RADIUS = 20, DIAM = RADIUS * 2, ROW_H = RADIUS * 1.75;
-const COLS = 11, TOP_MARGIN = 46, LEFT_MARGIN = RADIUS;
+const COLS = 9, TOP_MARGIN = 130, LEFT_MARGIN = (W - COLS * DIAM) / 2;
 
 const COLORS = ['#FF6FA5', '#7CB342', '#C17F3E', '#FFB648', '#B28CFF']; // strawberry, matcha, brown sugar, mango, taro
 const BOMB = 'bomb', AIRSTRIKE = 'airstrike', TIMED = 'timed', RAINBOW = 'rainbow', STONE = 'stone';

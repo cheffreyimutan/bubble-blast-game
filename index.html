@@ -373,20 +373,23 @@ const RADIUS = 20, DIAM = RADIUS * 2, ROW_H = RADIUS * 1.75;
 const COLS = 11, TOP_MARGIN = 46, LEFT_MARGIN = RADIUS;
 
 const COLORS = ['#ff5fa8', '#1fd6c8', '#8ee23a', '#ffa528', '#a855f7'];
-const BOMB = 'bomb', AIRSTRIKE = 'airstrike', TIMED = 'timed', RAINBOW = 'rainbow', STONE = 'stone', FREEZE = 'freeze';
+const BOMB = 'bomb', AIRSTRIKE = 'airstrike', TIMED = 'timed', RAINBOW = 'rainbow', STONE = 'stone';
+const GUIDE = 'guide', COLORBOMB = 'colorbomb', SWAP = 'swap';
 const SPECIALS = [BOMB, AIRSTRIKE, TIMED, RAINBOW];
 const NONCOLOR = [...SPECIALS, STONE];
 const POWER_DEFS = [
-  { key: BOMB, icon: '💣' },
-  { key: AIRSTRIKE, icon: '✈️' },
-  { key: TIMED, icon: '⏱' },
+  { key: GUIDE, icon: '💡' },
+  { key: COLORBOMB, icon: '🧨' },
   { key: RAINBOW, icon: '🌈' },
-  { key: FREEZE, icon: '❄️' }
+  { key: SWAP, icon: '🔄' }
 ];
-let armedPower = null, powerCharges = {}, freezeUntil = 0;
+let armedPower = null;
+let powerInventory = { [GUIDE]: 0, [COLORBOMB]: 0, [RAINBOW]: 0, [SWAP]: 0 };
+let powerPickups = [];
+let guideUntil = -10;
 const BUBBLE_ALPHA = 0.8;
 let keyLeft = false, keyRight = false;
-const ROT_SPEED = 2.4;
+const MOVE_SPEED = 260;
 const LAUNCHER_SCALE = 1.8;
 let launcherRecoilAt = -10;
 
@@ -394,7 +397,8 @@ let timeNow = 0, lastFrameTime = 0;
 let appState = 'menu'; // 'menu' | 'map' | 'playing'
 let currentLevel = 1, levelConfig = null, levelTimeLeft = 0, levelStartBubbleCount = 0;
 
-const shooterX = W / 2, shooterY = H - 50;
+let shooterX = W / 2;
+const shooterY = H - 50;
 const KILL_LINE_Y = shooterY - RADIUS * 3.6;
 
 function rowOffset(r) { return (r % 2 === 1) ? RADIUS : 0; }
@@ -465,6 +469,14 @@ function renderEcoPills() {
     `<div class="ecoPill"><span class="ecoIcon gem"></span><span>${economy.gems}</span></div>`;
   document.querySelectorAll('.ecoBar').forEach(el => { el.innerHTML = html; });
 }
+function loadPowerInventory() {
+  try {
+    const p = JSON.parse(localStorage.getItem('bubbleBlastPowers'));
+    if (p) powerInventory = Object.assign({ [GUIDE]: 0, [COLORBOMB]: 0, [RAINBOW]: 0, [SWAP]: 0 }, p);
+  } catch (e) {}
+}
+function savePowerInventory() { try { localStorage.setItem('bubbleBlastPowers', JSON.stringify(powerInventory)); } catch (e) {} }
+
 const DAILY_COOLDOWN_MS = 20 * 60 * 60 * 1000;
 function canClaimDaily() {
   let last = 0;
@@ -747,15 +759,11 @@ function newBubbles() {
   nextBubble = makeBubble(spawnColorForShooter());
 }
 
-function basePowerCharges(tier) {
-  const n = 1 + Math.min(tier, 3);
-  return { [BOMB]: n, [AIRSTRIKE]: n, [TIMED]: n, [RAINBOW]: n, [FREEZE]: n };
-}
 function renderPowerPanel() {
   const panel = document.getElementById('powerPanel');
   panel.innerHTML = '';
   for (const def of POWER_DEFS) {
-    const count = powerCharges[def.key] || 0;
+    const count = powerInventory[def.key] || 0;
     const btn = document.createElement('button');
     btn.className = 'powerBtn' + (armedPower === def.key ? ' armed' : '') + (count <= 0 ? ' disabled' : '');
     btn.innerHTML = `${def.icon}<small>${count}</small>`;
@@ -765,11 +773,18 @@ function renderPowerPanel() {
 }
 function activatePower(key) {
   if (appState !== 'playing' || gameOver) return;
-  if ((powerCharges[key] || 0) <= 0) return;
-  if (key === FREEZE) {
-    powerCharges[key]--;
-    freezeUntil = timeNow + 5;
-    popText(shooterX, shooterY - 60, 'FREEZE!', '#9ad8ff');
+  if ((powerInventory[key] || 0) <= 0) return;
+  if (key === GUIDE) {
+    powerInventory[key]--; savePowerInventory();
+    guideUntil = timeNow + 6;
+    renderPowerPanel();
+    return;
+  }
+  if (key === SWAP) {
+    if (!nextBubble) return;
+    powerInventory[key]--; savePowerInventory();
+    const tmp = currentBubble; currentBubble = nextBubble; nextBubble = tmp;
+    popText(shooterX, shooterY - 60, 'SWAPPED!', '#9ad8ff');
     renderPowerPanel();
     return;
   }
@@ -1039,6 +1054,12 @@ function popCluster(cells, label) {
     clearTimeout(window.__comboT);
     window.__comboT = setTimeout(() => { el.classList.remove('show'); }, 700);
   }
+  if (Math.random() < 0.18) {
+    const types = [GUIDE, COLORBOMB, RAINBOW, SWAP];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const origin = cells[Math.floor(Math.random() * cells.length)];
+    powerPickups.push({ x: cellX(origin[0], origin[1]), y: cellY(origin[0]), vy: 1, type, seed: Math.random() });
+  }
 }
 
 function explosionAt(r, c, radiusMult, label) {
@@ -1143,22 +1164,27 @@ function isBoardClear() {
   return true;
 }
 
-function resolveImpact(r, c, color, fuse) {
+function clearAllOfColor(color) {
+  const cells = [];
+  for (let r = 0; r < grid.length; r++) for (let c = 0; c < colsInRow(r); c++) {
+    if (grid[r][c] && grid[r][c].color === color) cells.push([r, c]);
+  }
+  if (cells.length) { shake(8, 14); popCluster(cells, 'COLOR BOMB!'); }
+}
+function resolveImpact(r, c, color, fuse, colorBombActive) {
   comboChain = 0;
-  grid[r][c] = makeBubble(color, color === TIMED ? (fuse ?? 3) : undefined, timeNow);
-  if (color === BOMB) {
-    explosionAt(r, c, 1.8, 'BOOM!');
-  } else if (color === AIRSTRIKE) {
-    columnClear(c, r);
-  } else if (color === TIMED) {
-    // ticks down on subsequent shots, see tickTimedBubbles
+  grid[r][c] = makeBubble(color, undefined, timeNow);
+  if (color === RAINBOW) {
+    const group = findMatch(r, c);
+    if (group.length >= 2) popCluster(group, group.length >= 6 ? 'NICE CHAIN!' : null);
+    else triggerMistake(r, c);
   } else {
     const group = findMatch(r, c);
     if (group.length >= 3) popCluster(group, group.length >= 6 ? 'NICE CHAIN!' : null);
     else triggerMistake(r, c);
   }
+  if (colorBombActive) clearAllOfColor(color);
   dropFloatingClusters();
-  tickTimedBubbles(`${r},${c}`);
   if (gameOver) return;
   if (isBoardClear()) { winLevel(); return; }
   checkKillLine();
@@ -1350,15 +1376,16 @@ function simulateTrajectory(angle) {
 function shoot() {
   if (appState !== 'playing' || gameOver || flying || !currentBubble) return;
   const speed = 17;
-  const fireColor = armedPower || currentBubble.color;
-  const fireFuse = fireColor === TIMED ? 3 : currentBubble.fuse;
+  const colorBombActive = armedPower === COLORBOMB;
+  const fireColor = armedPower === RAINBOW ? RAINBOW : currentBubble.color;
   flying = {
     x: shooterX, y: shooterY,
     vx: Math.cos(aimAngle) * speed, vy: Math.sin(aimAngle) * speed,
-    color: fireColor, fuse: fireFuse, seed: currentBubble.seed
+    color: fireColor, fuse: currentBubble.fuse, seed: currentBubble.seed, colorBomb: colorBombActive
   };
   if (armedPower) {
-    powerCharges[armedPower] = Math.max(0, (powerCharges[armedPower] || 0) - 1);
+    powerInventory[armedPower] = Math.max(0, (powerInventory[armedPower] || 0) - 1);
+    savePowerInventory();
     armedPower = null;
     renderPowerPanel();
   }
@@ -1384,7 +1411,7 @@ function updateFlying() {
 }
 function land() {
   const cell = nearestEmptyCell(flying.x, flying.y);
-  if (cell) resolveImpact(cell[0], cell[1], flying.color, flying.fuse);
+  if (cell) resolveImpact(cell[0], cell[1], flying.color, flying.fuse, flying.colorBomb);
   flying = null; currentBubble = null;
   if (!gameOver) newBubbles();
 }
@@ -1405,6 +1432,22 @@ function updateRings() {
   for (const r of rings) r.life -= 0.045;
   rings = rings.filter(r => r.life > 0);
 }
+function updatePowerPickups() {
+  for (const p of powerPickups) {
+    p.vy += 0.22; p.y += p.vy;
+    const dx = p.x - shooterX, dy = p.y - shooterY;
+    if (!p.caught && Math.abs(dy) < RADIUS * 1.5 && Math.abs(dx) < RADIUS * LAUNCHER_SCALE * 0.9) {
+      p.caught = true;
+      powerInventory[p.type] = (powerInventory[p.type] || 0) + 1;
+      savePowerInventory();
+      spawnParticles(p.x, p.y, '#ffd84a', 14);
+      popText(p.x, p.y - 10, '+1', '#ffd84a');
+      sfxPop();
+      renderPowerPanel();
+    }
+  }
+  powerPickups = powerPickups.filter(p => !p.caught && p.y < H + 30);
+}
 
 function draw() {
   ctx.save();
@@ -1416,7 +1459,7 @@ function draw() {
   drawBackground();
   drawKillLine();
 
-  if (appState === 'playing' && !gameOver && !flying && currentBubble) {
+  if (appState === 'playing' && !gameOver && !flying && currentBubble && timeNow < guideUntil) {
     const sim = simulateTrajectory(aimAngle);
     ctx.save();
     ctx.strokeStyle = 'rgba(255,255,255,0.28)';
@@ -1433,7 +1476,7 @@ function draw() {
     ctx.save();
     ctx.globalAlpha = 0.45;
     ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = ghostStrokeColor(armedPower || currentBubble.color);
+    ctx.strokeStyle = ghostStrokeColor(armedPower === RAINBOW ? RAINBOW : currentBubble.color);
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(lx, ly, RADIUS - 2, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
@@ -1447,6 +1490,21 @@ function draw() {
 
   for (const b of fallingBubbles) {
     drawBubble(b.x, b.y, b.color, { scale: Math.max(0.6, 1 - b.rot*0.05), seed: b.seed, bob: false });
+  }
+
+  for (const p of powerPickups) {
+    const def = POWER_DEFS.find(d => d.key === p.type);
+    const wob = Math.sin(timeNow * 5 + p.seed * 10) * 3;
+    ctx.save();
+    ctx.translate(p.x + wob, p.y);
+    const grad = ctx.createRadialGradient(-4, -4, 1, 0, 0, RADIUS * 0.75);
+    grad.addColorStop(0, 'rgba(255,255,255,0.9)'); grad.addColorStop(1, 'rgba(255,216,74,0.65)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(0, 0, RADIUS * 0.75, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = `${RADIUS * 0.8}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(def ? def.icon : '✨', 0, 1);
+    ctx.restore();
   }
 
   for (const ring of rings) {
@@ -1550,9 +1608,8 @@ function draw() {
   ctx.restore();
 
   if (currentBubble) {
-    const previewColor = armedPower || currentBubble.color;
-    const previewFuse = previewColor === TIMED ? 3 : currentBubble.fuse;
-    drawBubble(shooterX, shooterY, previewColor, { fuse: previewFuse, seed: currentBubble.seed });
+    const previewColor = armedPower === RAINBOW ? RAINBOW : currentBubble.color;
+    drawBubble(shooterX, shooterY, previewColor, { fuse: currentBubble.fuse, seed: currentBubble.seed });
   }
   if (nextBubble) {
     ctx.save();
@@ -1573,9 +1630,7 @@ function draw() {
   document.getElementById('levelLabel').textContent = worldLabel(currentLevel);
   const timerEl = document.getElementById('timerLabel');
   timerEl.textContent = fmtTime(levelTimeLeft);
-  const frozen = timeNow < freezeUntil;
-  const urgent = !frozen && levelTimeLeft < 10;
-  timerEl.classList.toggle('frozen', frozen);
+  const urgent = levelTimeLeft < 10;
   timerEl.classList.toggle('urgent', urgent);
   const timerFrac = levelConfig ? Math.max(0, Math.min(1, levelTimeLeft / levelConfig.timeLimit)) : 1;
   document.getElementById('timerBarFill').style.width = (timerFrac * 100) + '%';
@@ -1594,14 +1649,14 @@ function loop(ts) {
   }
 
   if (appState === 'playing' && !gameOver) {
-    if (timeNow >= freezeUntil) levelTimeLeft -= dt;
+    levelTimeLeft -= dt;
     if (levelTimeLeft <= 0) { levelTimeLeft = 0; failLevel("Time's up!"); }
     if (dt > 0) {
-      const minA = -Math.PI + 0.1, maxA = -0.1;
-      if (keyLeft) aimAngle = Math.max(minA, aimAngle - ROT_SPEED * dt);
-      if (keyRight) aimAngle = Math.min(maxA, aimAngle + ROT_SPEED * dt);
+      const minX = 42, maxX = W - 42;
+      if (keyLeft) shooterX = Math.max(minX, shooterX - MOVE_SPEED * dt);
+      if (keyRight) shooterX = Math.min(maxX, shooterX + MOVE_SPEED * dt);
     }
-    updateFlying(); updateParticles(); updateFalling(); updateTexts(); updateRings();
+    updateFlying(); updateParticles(); updateFalling(); updateTexts(); updateRings(); updatePowerPickups();
   }
   draw();
   requestAnimationFrame(loop);
@@ -1791,7 +1846,8 @@ function resetRuntimeState() {
   score = 0; shots = 0; gameOver = false; comboChain = 0;
   particles = []; fallingBubbles = []; texts = []; rings = []; flying = null;
   currentBubble = null; nextBubble = null;
-  armedPower = null; freezeUntil = 0;
+  armedPower = null; guideUntil = -10; powerPickups = [];
+  shooterX = W / 2;
 }
 
 function startLevel(level) {
@@ -1806,7 +1862,6 @@ function startLevel(level) {
   document.getElementById('overlay').style.display = 'none';
   setGameVisible(true);
   resetRuntimeState();
-  powerCharges = basePowerCharges(levelConfig.tier);
   renderPowerPanel();
   initLevel(levelConfig);
   levelStartBubbleCount = countBubbles();
@@ -1834,6 +1889,7 @@ if (window.visualViewport) window.visualViewport.addEventListener('resize', fitT
 fitToViewport();
 
 loadEconomy();
+loadPowerInventory();
 showMenu();
 requestAnimationFrame(loop);
 </script>

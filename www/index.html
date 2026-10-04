@@ -289,30 +289,47 @@
   }
   #mapCanvas { position: absolute; top: 0; left: 0; display: block; pointer-events: none; }
   #mapNodes { position: relative; width: 100%; }
-  .worldHeader {
-    position: absolute; left: 16px; right: 16px;
-    text-align: center; font-weight: 800; font-size: 13px; color: #fff;
-    padding: 6px 10px; border-radius: 999px; border: 1px solid;
-    backdrop-filter: blur(3px);
-  }
   .levelNode {
-    position: absolute; width: 50px; height: 50px; border-radius: 50%;
+    position: absolute; width: 72px; height: 72px;
     transform: translate(-50%, -50%);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 13px; color: #fff; cursor: pointer;
-    box-shadow: 0 0 0 3px rgba(255,255,255,0.15), 0 4px 14px rgba(0,0,0,0.5);
+    cursor: pointer;
   }
-  .levelNode.locked {
-    color: rgba(255,255,255,0.5); cursor: default;
-    box-shadow: 0 0 0 2px rgba(255,255,255,0.08);
-    font-size: 15px;
+  .levelNode.locked { cursor: default; }
+  .levelNodeInner {
+    width: 100%; height: 100%; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Fredoka'; font-weight: 700; font-size: 24px; color: #fff;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.3), 0 6px 0 rgba(74,43,26,.35);
+    animation: nodeFloat 3.2s ease-in-out infinite;
   }
-  .levelNode.current { animation: nodePulse 1.4s ease-in-out infinite; }
+  .levelNode.locked .levelNodeInner {
+    color: rgba(255,255,255,0.5);
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.08), 0 4px 0 rgba(74,43,26,.25);
+    font-size: 20px;
+    animation: none;
+  }
+  .levelNode.current .levelNodeInner { animation: nodeFloat 3.2s ease-in-out infinite, nodePulse 1.4s ease-in-out infinite; }
+  .levelNode.tapped .levelNodeInner { animation: nodeTap .45s ease-out; }
+  @keyframes nodeFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
   @keyframes nodePulse {
-    0%, 100% { box-shadow: 0 0 0 3px rgba(255,255,255,0.2), 0 0 16px 4px rgba(255,255,255,0.3); }
-    50% { box-shadow: 0 0 0 5px rgba(255,255,255,0.35), 0 0 26px 10px rgba(255,255,255,0.5); }
+    0%, 100% { box-shadow: 0 0 0 3px rgba(255,255,255,0.4), 0 6px 0 rgba(74,43,26,.35), 0 0 16px 4px rgba(255,216,120,0.3); }
+    50% { box-shadow: 0 0 0 5px rgba(255,255,255,0.6), 0 6px 0 rgba(74,43,26,.35), 0 0 26px 10px rgba(255,216,120,0.55); }
   }
-  .levelNode small { font-size: 9px; margin-top: 1px; }
+  @keyframes nodeTap {
+    0% { transform: scale(1); }
+    40% { transform: scale(0.8); box-shadow: 0 0 0 4px rgba(255,255,255,0.7), 0 2px 0 rgba(74,43,26,.35), 0 0 32px 14px rgba(255,216,120,0.75); }
+    100% { transform: scale(1); }
+  }
+  .levelStars {
+    position: absolute; transform: translate(-50%, 0);
+    font-size: 13px; letter-spacing: 1px; color: #E09A1C;
+    text-shadow: 0 1px 0 rgba(122,74,46,.3); text-align: center; width: 90px;
+  }
+  .levelMascotMarker {
+    position: absolute; transform: translate(-50%, 0); font-size: 30px;
+    animation: markerBob 1.8s ease-in-out infinite;
+  }
+  @keyframes markerBob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -8px); } }
   #mapScreen .btn { margin-top: 10px; }
   #hint { display: none; }
   #muteBtn {
@@ -2187,10 +2204,9 @@ function showMenu() {
   setNavActive('Home');
 }
 
-const MAP_X_PATTERN = [0.26, 0.5, 0.74, 0.5];
-const MAP_NODE_STEP_Y = 86;
-const MAP_WORLD_HEADER_H = 54;
-const MAP_PLANET_R = 24;
+const MAP_X_PATTERN = [0.3, 0.6, 0.3, 0.6];
+const MAP_NODE_STEP_Y = 108;
+const MAP_PLANET_R = 36;
 
 function drawPlanet(mctx, x, y, r, color, locked, hasRing) {
   mctx.save();
@@ -2229,19 +2245,14 @@ function buildGalaxyMap() {
   const mapCanvas = document.getElementById('mapCanvas');
   mapNodes.innerHTML = '';
 
+  const currentTheme = themeForWorld(Math.floor((prog.unlocked - 1) / LEVELS_PER_WORLD));
+  const titleEl = document.getElementById('mapWorldTitle');
+  if (titleEl) titleEl.textContent = `World ${Math.floor((prog.unlocked - 1) / LEVELS_PER_WORLD) + 1} · ${currentTheme.name}`;
+
   const positions = [];
-  let y = 24, currentNodeY = 0;
+  let y = 50, currentNodeY = 0;
   for (let w = 0; w < numWorlds; w++) {
     const theme = themeForWorld(w);
-    y += MAP_WORLD_HEADER_H;
-    const header = document.createElement('div');
-    header.className = 'worldHeader';
-    header.style.top = (y - MAP_WORLD_HEADER_H + 14) + 'px';
-    header.style.borderColor = theme.color;
-    header.style.background = theme.color + '2a';
-    header.innerHTML = `${theme.icon} World ${w + 1} — ${theme.name}`;
-    mapNodes.appendChild(header);
-
     for (let i = 0; i < LEVELS_PER_WORLD; i++) {
       const level = w * LEVELS_PER_WORLD + i + 1;
       if (level > maxLevel) break;
@@ -2270,22 +2281,49 @@ function buildGalaxyMap() {
 
   positions.forEach((p, idx) => {
     const unlocked = p.level <= prog.unlocked;
-    drawPlanet(mctx, p.x, p.y, MAP_PLANET_R, p.theme.color, !unlocked, idx % 3 === 2);
-  });
-
-  positions.forEach(p => {
-    const unlocked = p.level <= prog.unlocked;
     const isCurrent = p.level === prog.unlocked;
     const stars = (prog.stars && prog.stars[p.level]) || 0;
     const div = document.createElement('div');
     div.className = 'levelNode ' + (unlocked ? 'unlocked' : 'locked') + (isCurrent ? ' current' : '');
     div.style.left = p.x + 'px';
     div.style.top = p.y + 'px';
-    div.innerHTML = unlocked
-      ? `<span>${worldLabel(p.level)}</span>${stars ? `<small>${'⭐'.repeat(stars)}</small>` : ''}`
-      : '🔒';
-    if (unlocked) div.addEventListener('click', () => openToppings(p.level));
+    const inner = document.createElement('div');
+    inner.className = 'levelNodeInner';
+    inner.style.background = unlocked
+      ? `radial-gradient(circle at 35% 30%, ${shadeColor(p.theme.color, 35)}, ${p.theme.color} 55%, ${shadeColor(p.theme.color, -28)} 100%)`
+      : `radial-gradient(circle at 35% 30%, #5a5a66, #26262e 100%)`;
+    inner.style.animationDelay = `-${(idx * 0.37) % 3.2}s`;
+    inner.innerHTML = unlocked ? `<span>${p.level}</span>` : '🔒';
+    div.appendChild(inner);
+    if (unlocked) {
+      div.addEventListener('click', () => {
+        div.classList.add('tapped');
+        sfxPop();
+        inner.addEventListener('animationend', function onEnd(e) {
+          if (e.animationName !== 'nodeTap') return;
+          div.classList.remove('tapped');
+          inner.removeEventListener('animationend', onEnd);
+        });
+        openToppings(p.level);
+      });
+    }
     mapNodes.appendChild(div);
+    if (unlocked && stars) {
+      const starEl = document.createElement('div');
+      starEl.className = 'levelStars';
+      starEl.style.left = p.x + 'px';
+      starEl.style.top = (p.y + MAP_PLANET_R + 6) + 'px';
+      starEl.textContent = '★'.repeat(stars);
+      mapNodes.appendChild(starEl);
+    }
+    if (isCurrent) {
+      const marker = document.createElement('div');
+      marker.className = 'levelMascotMarker';
+      marker.style.left = p.x + 'px';
+      marker.style.top = (p.y - MAP_PLANET_R - 42) + 'px';
+      marker.textContent = '🧋';
+      mapNodes.appendChild(marker);
+    }
   });
 
   requestAnimationFrame(() => {

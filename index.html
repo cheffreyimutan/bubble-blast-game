@@ -2146,7 +2146,7 @@ function draw() {
   const PEARL_IN_STRAW_SCALE = 1 / LAUNCHER_SCALE;
   const TUBE_HALF_W = RADIUS * PEARL_IN_STRAW_SCALE * 1.08;
   const TUBE_TOP = -RADIUS * 2.05, TUBE_BASE = RADIUS * 0.15;
-  const tubePath = () => { ctx.beginPath(); ctx.roundRect(-TUBE_HALF_W, TUBE_TOP, TUBE_HALF_W * 2, TUBE_BASE - TUBE_TOP, TUBE_HALF_W); };
+  const tubePath = () => { ctx.beginPath(); ctx.roundRect(-TUBE_HALF_W, TUBE_TOP, TUBE_HALF_W * 2, TUBE_BASE - TUBE_TOP, TUBE_HALF_W * 0.12); };
 
   // next pearl sits lower in the tube (near the cup), current pearl near the open tip -
   // both drawn at the same scale pearls use on the board, clipped so they read as "inside"

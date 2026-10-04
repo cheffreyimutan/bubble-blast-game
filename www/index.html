@@ -770,7 +770,7 @@ let economy = { coins: 0, gems: 0, lives: MAX_LIVES, nextLifeAt: 0 };
 function loadEconomy() {
   try {
     const e = JSON.parse(localStorage.getItem('bubbleBlastEconomy'));
-    if (e) economy = Object.assign({ coins: 0, gems: 0, lives: MAX_LIVES, nextLifeAt: 0 }, e);
+    economy = Object.assign({ coins: 0, gems: 0, lives: MAX_LIVES, nextLifeAt: 0 }, e || {});
   } catch (err) {}
   regenLives();
 }
@@ -821,7 +821,7 @@ function saveSettings() {
 function loadPowerInventory() {
   try {
     const p = JSON.parse(localStorage.getItem('bubbleBlastPowers'));
-    if (p) powerInventory = Object.assign({ [GUIDE]: 0, [COLORBOMB]: 0, [RAINBOW]: 0, [SWAP]: 0 }, p);
+    powerInventory = Object.assign({ [GUIDE]: 0, [COLORBOMB]: 0, [RAINBOW]: 0, [SWAP]: 0 }, p || {});
   } catch (e) {}
 }
 function savePowerInventory() { try { localStorage.setItem('bubbleBlastPowers', JSON.stringify(powerInventory)); } catch (e) {} }

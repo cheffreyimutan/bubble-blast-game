@@ -6,20 +6,20 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Bubble Blast</title>
+<title>Pop A Bobba</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg1: #130E32; --bg2: #1D1546; --bg3: #2E2163;
+    --bg1: #2B1710; --bg2: #4A2C1A; --bg3: #6B4226;
     --pink: #FF7EB6; --pink-sh: #E0549A;
-    --mint: #5EE0B5; --mint-sh: #2FB98E; --mint-ink: #163B30;
-    --yellow: #FFD45C; --yellow-sh: #E8AE2A;
+    --mint: #7CB342; --mint-sh: #5C8C2E; --mint-ink: #1F3B12;
+    --yellow: #E3A857; --yellow-sh: #B37F2E;
     --purple: #B28CFF; --purple-sh: #8A62E6;
     --sky: #62B8FF;
-    --cream: #FFF8F0; --ink: #2B2150; --muted-ink: #6B5F93;
-    --lavender: #CFC6F5; --lavender-dim: #9C92C9;
-    --cyan: #5EE0B5;
+    --cream: #FFF8F0; --ink: #3B2415; --muted-ink: #8A7560;
+    --lavender: #D9BBEA; --lavender-dim: #A98DC4;
+    --cyan: #7CB342;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -90,7 +90,7 @@
     transition: opacity 0.15s, transform 0.15s;
   }
   #combo.show { opacity: 1; transform: scale(1); }
-  #overlay, #menuScreen, #mapScreen, #shopScreen {
+  #overlay, #menuScreen, #mapScreen, #shopScreen, #settingsScreen {
     position: absolute; inset: 0;
     border-radius: 16px; color: #fff; text-align: center;
     display: none; flex-direction: column; align-items: center; justify-content: center;
@@ -168,8 +168,8 @@
     font-weight: 900; font-size: 12px;
     animation: starPop 0.4s cubic-bezier(.34,1.56,.64,1) forwards;
   }
-  #menuScreen, #mapScreen, #shopScreen {
-    background: radial-gradient(ellipse at top, #2d1b4e, #14102a);
+  #menuScreen, #mapScreen, #shopScreen, #settingsScreen {
+    background: radial-gradient(ellipse at top, #4A2C1A, #1F120A);
   }
   #overlay h1, #menuScreen h1 { margin: 0 0 6px; font-size: 28px; font-family: 'Fredoka', system-ui, sans-serif; font-weight: 700; }
   #menuScreen h1 { color: var(--cream); }
@@ -224,7 +224,7 @@
   .btn.small { padding: 8px 16px; font-size: 12px; margin: 0; }
   #mapScreen {
     justify-content: flex-start; padding: 50px 0 20px;
-    background: radial-gradient(ellipse at top, #1d1240, #07050f);
+    background: radial-gradient(ellipse at top, #3B2415, #140B06);
   }
   #mapScreen h2 { margin: 0 0 10px; font-size: 20px; }
   #shopScreen { justify-content: flex-start; padding: 50px 16px 16px; }
@@ -247,6 +247,32 @@
     font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer;
   }
   .shopCard .buy:active { transform: translateY(2px); }
+  #settingsScreen { justify-content: flex-start; padding: 50px 16px 16px; }
+  #settingsScreen h2 { margin: 0 0 12px; font-size: 24px; font-family: 'Fredoka', sans-serif; font-weight: 700; }
+  #settingsScroll { position: relative; width: 100%; flex: 1; overflow-y: auto; scrollbar-width: thin; }
+  .settingsGroupLabel { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: var(--lavender-dim); margin: 14px 6px 6px; text-align: left; }
+  .settingsGroupLabel:first-child { margin-top: 0; }
+  .settingsGroup { border-radius: 22px; background: var(--cream); overflow: hidden; }
+  .toggleRow {
+    width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+    border: none; border-bottom: 1px solid #EEE7F7; background: none; color: var(--ink); text-align: left; cursor: pointer;
+  }
+  .toggleRow:last-child { border-bottom: none; }
+  .toggleRow .label { flex: 1; min-width: 0; }
+  .toggleRow .label .t { font-weight: 800; font-size: 15px; }
+  .toggleRow .label .s { font-size: 12px; font-weight: 700; color: var(--muted-ink); }
+  .toggleSwitch { position: relative; flex: none; width: 48px; height: 28px; border-radius: 999px; transition: background 0.15s; }
+  .toggleSwitch.on { background: var(--mint); }
+  .toggleSwitch.off { background: #CFC6E0; }
+  .toggleKnob { position: absolute; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: left 0.15s; }
+  .settingsLink {
+    width: 100%; display: flex; align-items: center; gap: 12px; padding: 15px 16px;
+    border: none; border-bottom: 1px solid #EEE7F7; background: none; color: var(--ink); text-align: left; cursor: pointer;
+    font-weight: 800; font-size: 15px;
+  }
+  .settingsLink:last-child { border-bottom: none; }
+  .settingsLink .chev { margin-left: auto; color: #B3A9D3; font-family: 'Fredoka', sans-serif; font-size: 20px; }
+  .settingsVersion { text-align: center; font-size: 12px; font-weight: 700; color: var(--lavender-dim); margin-top: 14px; }
   #galaxyScroll {
     position: relative; width: 100%; flex: 1;
     overflow-y: auto; overflow-x: hidden;
@@ -321,15 +347,15 @@
     <div class="ecoBar"></div>
     <button id="dailyGiftBtn" class="iconChip" title="Daily Gift" style="position:absolute; left:16px; top:56px;">🎁<span id="dailyBadge" class="badgeDot" style="display:none;"></span></button>
     <div class="menuFloaters" aria-hidden="true">
-      <span style="--x:12%; --d:0s; --s:1">🫧</span>
+      <span style="--x:12%; --d:0s; --s:1">🧋</span>
       <span style="--x:78%; --d:2.2s; --s:0.7">⭐</span>
-      <span style="--x:45%; --d:4.5s; --s:0.85">🫧</span>
+      <span style="--x:45%; --d:4.5s; --s:0.85">🧋</span>
       <span style="--x:88%; --d:6.8s; --s:0.6">✨</span>
       <span style="--x:25%; --d:8.5s; --s:0.65">⭐</span>
     </div>
-    <div class="logo">🫧</div>
-    <h1>Bubble Blast</h1>
-    <p class="subtitle">pop, chain &amp; blast your way to the top</p>
+    <div class="logo">🧋</div>
+    <h1>Pop A Bobba</h1>
+    <p class="subtitle">pop, chain &amp; sip your way to the top</p>
     <div id="homeWorldLine" class="worldLine"></div>
     <button class="btn primary-cta" id="playBtn">Play</button>
     <div class="menuUtilRow">
@@ -339,7 +365,7 @@
   </div>
 
   <div id="mapScreen">
-    <h2>Galaxy Map</h2>
+    <h2>Flavor Map</h2>
     <div class="ecoBar"></div>
     <div id="galaxyScroll">
       <canvas id="mapCanvas"></canvas>
@@ -355,6 +381,14 @@
       <div id="shopCards"></div>
     </div>
     <button class="btn secondary" id="shopBackBtn">Back</button>
+  </div>
+
+  <div id="settingsScreen">
+    <h2>Settings</h2>
+    <div id="settingsScroll">
+      <div id="settingsGroups"></div>
+    </div>
+    <button class="btn secondary" id="settingsBackBtn">Back</button>
   </div>
 
   <div id="hud">
@@ -401,16 +435,16 @@ canvas.width = W; canvas.height = H;
 const RADIUS = 20, DIAM = RADIUS * 2, ROW_H = RADIUS * 1.75;
 const COLS = 11, TOP_MARGIN = 46, LEFT_MARGIN = RADIUS;
 
-const COLORS = ['#ff5fa8', '#1fd6c8', '#8ee23a', '#ffa528', '#a855f7'];
+const COLORS = ['#FF6FA5', '#7CB342', '#C17F3E', '#FFB648', '#B28CFF']; // strawberry, matcha, brown sugar, mango, taro
 const BOMB = 'bomb', AIRSTRIKE = 'airstrike', TIMED = 'timed', RAINBOW = 'rainbow', STONE = 'stone';
 const GUIDE = 'guide', COLORBOMB = 'colorbomb', SWAP = 'swap';
 const SPECIALS = [BOMB, AIRSTRIKE, TIMED, RAINBOW];
 const NONCOLOR = [...SPECIALS, STONE];
 const POWER_DEFS = [
-  { key: GUIDE, icon: '💡' },
-  { key: COLORBOMB, icon: '🧨' },
-  { key: RAINBOW, icon: '🌈' },
-  { key: SWAP, icon: '🔄' }
+  { key: GUIDE, icon: '🥤', name: 'Straw Guide' },
+  { key: COLORBOMB, icon: '🍹', name: 'Flavor Bomb' },
+  { key: RAINBOW, icon: '🌈', name: 'Rainbow Pearl' },
+  { key: SWAP, icon: '🔄', name: 'Pearl Swap' }
 ];
 let armedPower = null;
 let powerInventory = { [GUIDE]: 0, [COLORBOMB]: 0, [RAINBOW]: 0, [SWAP]: 0 };
@@ -498,6 +532,17 @@ function renderEcoPills() {
     `<div class="ecoPill"><span class="ecoIcon gem"></span><span>${economy.gems}</span></div>`;
   document.querySelectorAll('.ecoBar').forEach(el => { el.innerHTML = html; });
 }
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('bubbleBlastSettings'));
+    if (s) { sfxMuted = !!s.sfxMuted; bgmMuted = !!s.bgmMuted; }
+  } catch (e) {}
+  bgmAudio.muted = bgmMuted; menuBgmAudio.muted = bgmMuted; winAudio.muted = bgmMuted;
+  document.getElementById('muteBtn').textContent = bgmMuted ? '🔇' : '🔊';
+}
+function saveSettings() {
+  try { localStorage.setItem('bubbleBlastSettings', JSON.stringify({ sfxMuted, bgmMuted })); } catch (e) {}
+}
 function loadPowerInventory() {
   try {
     const p = JSON.parse(localStorage.getItem('bubbleBlastPowers'));
@@ -521,11 +566,11 @@ function openDailyGift() {
     return;
   }
   const reward = 30;
-  showOverlay('Daily Gift 🎁', `Claim your free ${reward} coins!`, `Claim +${reward} 🪙`, () => {
+  showOverlay('Daily Gift 🎁', `Claim your free ${reward} pearls!`, `Claim +${reward} 🧋`, () => {
     addCoins(reward);
     try { localStorage.setItem('bubbleBlastDailyLast', String(Date.now())); } catch (e) {}
     renderEcoPills(); updateDailyBadge();
-    showOverlay('Nice!', `+${reward} coins added to your wallet.`, 'Yay', showMenu);
+    showOverlay('Nice!', `+${reward} pearls added to your wallet.`, 'Yay', showMenu);
   });
 }
 function showRewardedAd(onComplete) {
@@ -562,11 +607,11 @@ function getLevelConfig(level) {
 
 const LEVELS_PER_WORLD = 10;
 const WORLD_THEMES = [
-  { name: 'Candy Nebula', color: '#ff5fa8', icon: '🍬' },
-  { name: 'Frost Belt', color: '#1fd6c8', icon: '❄️' },
-  { name: 'Toxic Cluster', color: '#8ee23a', icon: '☄️' },
-  { name: 'Solar Flare', color: '#ffa528', icon: '🔥' },
-  { name: 'Void Nebula', color: '#a855f7', icon: '🌌' }
+  { name: 'Brown Sugar Bay', color: '#C17F3E', icon: '🧋' },
+  { name: 'Matcha Meadow', color: '#7CB342', icon: '🍵' },
+  { name: 'Taro Town', color: '#B28CFF', icon: '🍠' },
+  { name: 'Strawberry Fields', color: '#FF6FA5', icon: '🍓' },
+  { name: 'Mango Grove', color: '#FFB648', icon: '🥭' }
 ];
 function themeForWorld(worldIdx) { return WORLD_THEMES[worldIdx % WORLD_THEMES.length]; }
 function worldLabel(level) {
@@ -658,7 +703,9 @@ function drawKillLine() {
 // --- audio (synthesized, no asset files) ---
 let actx = null;
 function audioCtx() { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx; }
+let sfxMuted = false;
 function beep(freq, dur, type, vol, delay = 0) {
+  if (sfxMuted) return;
   try {
     const ac = audioCtx();
     const t0 = ac.currentTime + delay;
@@ -720,6 +767,8 @@ function toggleBgmMute() {
   menuBgmAudio.muted = bgmMuted;
   winAudio.muted = bgmMuted;
   document.getElementById('muteBtn').textContent = bgmMuted ? '🔇' : '🔊';
+  saveSettings();
+  renderSettingsToggles();
 }
 
 function shake(mag, time) { shakeMag = Math.max(shakeMag, mag); shakeTime = Math.max(shakeTime, time); }
@@ -796,6 +845,7 @@ function renderPowerPanel() {
     const btn = document.createElement('button');
     btn.className = 'powerBtn' + (armedPower === def.key ? ' armed' : '') + (count <= 0 ? ' disabled' : '');
     btn.innerHTML = `${def.icon}<small>${count}</small>`;
+    btn.title = def.name;
     if (count > 0) btn.addEventListener('click', () => activatePower(def.key));
     panel.appendChild(btn);
   }
@@ -1246,7 +1296,7 @@ function winLevel() {
   let adUsed = false;
   showOverlay('Level Complete!', `Score: ${score}`, 'Next Level', () => startLevel(currentLevel + 1), 'Map', showMap, {
     stars, isNewBest, coins: coinsEarned,
-    adBtn: { label: '📺 Watch Ad · Double Coins', onClick: () => {
+    adBtn: { label: '📺 Watch Ad · Double Pearls', onClick: () => {
       if (adUsed) return;
       adUsed = true;
       showRewardedAd(() => {
@@ -1293,7 +1343,7 @@ function failLevel(reason) {
   const clearedFrac = levelStartBubbleCount ? 1 - remaining / levelStartBubbleCount : 0;
   const title = clearedFrac > 0.5 ? 'So Close!' : 'One More Try?';
   const sub = clearedFrac > 0.5 ? `${reason} You cleared ${Math.round(clearedFrac * 100)}% of the board!` : reason;
-  showOverlay(title, sub, `Continue · ${CONTINUE_COST} 🪙`, () => {
+  showOverlay(title, sub, `Continue · ${CONTINUE_COST} 🧋`, () => {
     if (spendCoins(CONTINUE_COST)) { renderEcoPills(); grantContinue(); }
   }, null, null, {
     primaryDisabled: economy.coins < CONTINUE_COST,
@@ -1338,7 +1388,7 @@ function showOverlay(title, sub, primaryLabel, primaryFn, secondaryLabel, second
   if (opts.coins != null) {
     coinsRow.style.display = 'flex';
     coinsRow.innerHTML = `<div class="statBox"><div class="lbl">SCORE</div><div class="val">${score}</div></div>` +
-      `<div class="statBox coin"><div class="lbl">COINS</div><div class="val">+${opts.coins}</div></div>`;
+      `<div class="statBox coin"><div class="lbl">PEARLS</div><div class="val">+${opts.coins}</div></div>`;
   } else {
     coinsRow.style.display = 'none';
   }
@@ -1370,7 +1420,7 @@ function showComingSoon(label) {
 const BOOSTER_BUNDLE_COST = 150;
 function buyBoosterBundle() {
   if (!spendCoins(BOOSTER_BUNDLE_COST)) {
-    showOverlay('Not enough coins', `You need ${BOOSTER_BUNDLE_COST} 🪙 for this bundle.`, 'OK', showShop);
+    showOverlay('Not enough pearls', `You need ${BOOSTER_BUNDLE_COST} 🧋 for this bundle.`, 'OK', showShop);
     return;
   }
   for (const def of POWER_DEFS) powerInventory[def.key] = (powerInventory[def.key] || 0) + 1;
@@ -1387,21 +1437,66 @@ function buildShopCards() {
     <div class="shopCard">
       <div class="icon" style="background:linear-gradient(135deg,#B28CFF,#8A62E6);">🎁</div>
       <div class="info"><div class="title">Booster Bundle</div><div class="sub">+1 of every power-up</div></div>
-      <button class="buy" style="background:var(--yellow);color:var(--ink);box-shadow:0 4px 0 var(--yellow-sh);" id="buyBundleBtn">${BOOSTER_BUNDLE_COST} 🪙</button>
+      <button class="buy" style="background:var(--yellow);color:var(--ink);box-shadow:0 4px 0 var(--yellow-sh);" id="buyBundleBtn">${BOOSTER_BUNDLE_COST} 🧋</button>
     </div>
     <div class="shopCard">
-      <div class="icon" style="background:#2B2150;color:var(--yellow);font-family:'Fredoka';font-size:12px;line-height:1.1;">NO<br>ADS</div>
+      <div class="icon" style="background:#3B2415;color:var(--yellow);font-family:'Fredoka';font-size:12px;line-height:1.1;">NO<br>ADS</div>
       <div class="info"><div class="title">Remove Ads</div><div class="sub">No banners or breaks. Rewarded ads stay optional.</div></div>
       <button class="buy" style="background:var(--mint);color:var(--mint-ink);box-shadow:0 4px 0 var(--mint-sh);" id="buyNoAdsBtn">$2.99</button>
     </div>
     <div class="shopCard">
-      <div class="icon" style="background:linear-gradient(135deg,#FF7EB6,#B28CFF);">🚀</div>
-      <div class="info"><div class="title">Starter Pack</div><div class="sub">500 coins + 10 boosters</div></div>
+      <div class="icon" style="background:linear-gradient(135deg,#FF7EB6,#B28CFF);">🧋</div>
+      <div class="info"><div class="title">Starter Pack</div><div class="sub">500 pearls + 10 boosters</div></div>
       <button class="buy" style="background:var(--pink);color:var(--cream);box-shadow:0 4px 0 var(--pink-sh);" id="buyStarterBtn">$1.99</button>
     </div>`;
   document.getElementById('buyBundleBtn').onclick = buyBoosterBundle;
   document.getElementById('buyNoAdsBtn').onclick = () => buyStub('Remove Ads');
   document.getElementById('buyStarterBtn').onclick = () => buyStub('Starter Pack');
+}
+function toggleSfxMuted() { sfxMuted = !sfxMuted; saveSettings(); renderSettingsToggles(); }
+function toggleMusicMuted() { toggleBgmMute(); }
+function renderSettingsToggles() {
+  const panel = document.getElementById('settingsGroups');
+  if (!panel) return;
+  const row = (key, title, sub, on, onClick) => `
+    <button class="toggleRow" data-key="${key}">
+      <div class="label"><div class="t">${title}</div><div class="s">${sub}</div></div>
+      <div class="toggleSwitch ${on ? 'on' : 'off'}"><div class="toggleKnob" style="left:${on ? 26 : 3}px;"></div></div>
+    </button>`;
+  panel.innerHTML = `
+    <div class="settingsGroupLabel">SOUND &amp; FEEL</div>
+    <div class="settingsGroup">
+      ${row('music', 'Music', 'Background music', !bgmMuted, toggleMusicMuted)}
+      ${row('sfx', 'Sound Effects', 'Pops, booms &amp; jingles', !sfxMuted, toggleSfxMuted)}
+    </div>
+    <div class="settingsGroupLabel">ACCOUNT &amp; HELP</div>
+    <div class="settingsGroup">
+      <button class="settingsLink" id="rateUsLink">Rate Us <span class="chev">›</span></button>
+      <button class="settingsLink" id="resetProgressLink" style="color:#C0392B;">Reset Progress <span class="chev">›</span></button>
+    </div>
+    <div class="settingsVersion">Pop A Bobba v1.0.0</div>`;
+  panel.querySelector('[data-key="music"]').addEventListener('click', toggleMusicMuted);
+  panel.querySelector('[data-key="sfx"]').addEventListener('click', toggleSfxMuted);
+  document.getElementById('rateUsLink').addEventListener('click', () => showComingSoon('Rate Us'));
+  document.getElementById('resetProgressLink').addEventListener('click', confirmResetProgress);
+}
+function confirmResetProgress() {
+  showOverlay('Reset Progress?', 'This erases all levels, stars, pearls, boba gems and power-ups. This cannot be undone.', 'Erase Everything', () => {
+    ['bubbleBlastProgress', 'bubbleBlastEconomy', 'bubbleBlastPowers', 'bubbleBlastDailyLast'].forEach(k => localStorage.removeItem(k));
+    loadProgress(); loadEconomy(); loadPowerInventory();
+    showOverlay('Done', 'Your progress has been reset.', 'OK', showMenu);
+  }, 'Cancel', showSettings);
+}
+function showSettings() {
+  playMenuBgm();
+  appState = 'settings';
+  setGameVisible(false);
+  document.getElementById('menuScreen').style.display = 'none';
+  document.getElementById('mapScreen').style.display = 'none';
+  document.getElementById('shopScreen').style.display = 'none';
+  document.getElementById('overlay').style.display = 'none';
+  renderSettingsToggles();
+  document.getElementById('settingsScreen').style.display = 'flex';
 }
 function showShop() {
   playMenuBgm();
@@ -1409,6 +1504,7 @@ function showShop() {
   setGameVisible(false);
   document.getElementById('menuScreen').style.display = 'none';
   document.getElementById('mapScreen').style.display = 'none';
+  document.getElementById('settingsScreen').style.display = 'none';
   document.getElementById('overlay').style.display = 'none';
   buildShopCards();
   renderEcoPills();
@@ -1639,7 +1735,7 @@ function draw() {
   ctx.beginPath(); ctx.ellipse(shooterX, shooterY + RADIUS*0.5, RADIUS*2.1, RADIUS*0.8, 0, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 
-  // crossbow: rotates to track aimAngle, bubble sits loaded at the nock point (pivot)
+  // drink cup + straw: rotates to track aimAngle, bubble (boba pearl) loads at the straw tip (pivot)
   ctx.save();
   ctx.translate(shooterX, shooterY);
   ctx.rotate(aimAngle + Math.PI / 2);
@@ -1648,55 +1744,41 @@ function draw() {
   ctx.translate(0, recoil * RADIUS * 0.5);
   ctx.scale(LAUNCHER_SCALE * (1 + recoil * 0.06), LAUNCHER_SCALE * (1 - recoil * 0.06));
 
-  // stock + grip (extends backward from the nock point)
-  const stockGrad = ctx.createLinearGradient(-RADIUS*0.3, 0, RADIUS*0.3, 0);
-  stockGrad.addColorStop(0, '#5a3d24'); stockGrad.addColorStop(0.5, '#8a6038'); stockGrad.addColorStop(1, '#5a3d24');
-  ctx.fillStyle = stockGrad;
+  // cup body (extends backward from the straw's base)
+  const cupGrad = ctx.createLinearGradient(-RADIUS*0.32, 0, RADIUS*0.32, 0);
+  cupGrad.addColorStop(0, '#D9A66B'); cupGrad.addColorStop(0.5, '#B9814E'); cupGrad.addColorStop(1, '#8A5C34');
+  ctx.fillStyle = cupGrad;
   ctx.beginPath();
-  ctx.moveTo(-RADIUS*0.26, RADIUS*0.1);
-  ctx.lineTo(RADIUS*0.26, RADIUS*0.1);
-  ctx.lineTo(RADIUS*0.2, RADIUS*1.5);
-  ctx.lineTo(-RADIUS*0.2, RADIUS*1.5);
+  ctx.moveTo(-RADIUS*0.32, RADIUS*0.15);
+  ctx.lineTo(RADIUS*0.32, RADIUS*0.15);
+  ctx.lineTo(RADIUS*0.22, RADIUS*1.55);
+  ctx.lineTo(-RADIUS*0.22, RADIUS*1.55);
   ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1.5; ctx.stroke();
 
-  ctx.fillStyle = stockGrad;
-  ctx.beginPath();
-  ctx.moveTo(-RADIUS*0.22, RADIUS*0.75);
-  ctx.quadraticCurveTo(-RADIUS*0.75, RADIUS*0.95, -RADIUS*0.55, RADIUS*1.45);
-  ctx.quadraticCurveTo(-RADIUS*0.35, RADIUS*1.25, -RADIUS*0.18, RADIUS*1.15);
-  ctx.closePath(); ctx.fill();
-  ctx.stroke();
-
-  for (const ry of [RADIUS*0.35, RADIUS*0.9]) {
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath(); ctx.arc(0, ry, RADIUS*0.045, 0, Math.PI*2); ctx.fill();
+  // tapioca pearls settled at the bottom of the cup
+  ctx.fillStyle = 'rgba(40,24,14,0.55)';
+  for (const p of [[-RADIUS*0.1, RADIUS*1.18], [RADIUS*0.1, RADIUS*1.3], [0, RADIUS*1.42]]) {
+    ctx.beginPath(); ctx.arc(p[0], p[1], RADIUS*0.07, 0, Math.PI*2); ctx.fill();
   }
 
-  // rail / barrel groove running up to the nock point
-  ctx.fillStyle = '#3a281a';
+  // cup rim / lid
+  ctx.fillStyle = '#FFF8F0';
+  ctx.beginPath(); ctx.ellipse(0, RADIUS*0.1, RADIUS*0.36, RADIUS*0.12, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 1; ctx.stroke();
+
+  // straw (pokes forward through the lid toward the aim direction)
+  const strawGrad = ctx.createLinearGradient(-RADIUS*0.1, 0, RADIUS*0.1, 0);
+  strawGrad.addColorStop(0, shadeColor(currentWorldColor, 25));
+  strawGrad.addColorStop(0.5, currentWorldColor);
+  strawGrad.addColorStop(1, shadeColor(currentWorldColor, -25));
+  ctx.fillStyle = strawGrad;
   ctx.beginPath();
-  ctx.roundRect(-RADIUS*0.1, -RADIUS*0.3, RADIUS*0.2, RADIUS*0.5, 3);
+  ctx.roundRect(-RADIUS*0.1, -RADIUS*1.35, RADIUS*0.2, RADIUS*1.45, RADIUS*0.1);
   ctx.fill();
-
-  // bow limbs + string
-  ctx.strokeStyle = '#7a8a94'; ctx.lineWidth = RADIUS*0.16; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(-RADIUS*0.12, -RADIUS*0.15); ctx.lineTo(-RADIUS*1.15, -RADIUS*0.55); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(RADIUS*0.12, -RADIUS*0.15); ctx.lineTo(RADIUS*1.15, -RADIUS*0.55); ctx.stroke();
-  ctx.strokeStyle = '#aab6bd'; ctx.lineWidth = RADIUS*0.06;
-  ctx.beginPath(); ctx.moveTo(-RADIUS*0.12, -RADIUS*0.15); ctx.lineTo(-RADIUS*1.15, -RADIUS*0.55); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(RADIUS*0.12, -RADIUS*0.15); ctx.lineTo(RADIUS*1.15, -RADIUS*0.55); ctx.stroke();
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(-RADIUS*1.15, -RADIUS*0.55);
-  ctx.lineTo(0, RADIUS*0.02);
-  ctx.lineTo(RADIUS*1.15, -RADIUS*0.55);
-  ctx.stroke();
-
-  // trigger
-  ctx.strokeStyle = '#2a1d12'; ctx.lineWidth = RADIUS*0.1; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.arc(0, RADIUS*0.55, RADIUS*0.14, 0.2*Math.PI, 0.8*Math.PI); ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-RADIUS*0.03, -RADIUS*1.3); ctx.lineTo(-RADIUS*0.03, -RADIUS*0.05); ctx.stroke();
 
   ctx.restore();
 
@@ -1829,6 +1911,7 @@ function showMenu() {
   setGameVisible(false);
   document.getElementById('mapScreen').style.display = 'none';
   document.getElementById('shopScreen').style.display = 'none';
+  document.getElementById('settingsScreen').style.display = 'none';
   document.getElementById('overlay').style.display = 'none';
   document.getElementById('menuScreen').style.display = 'flex';
   regenLives(); renderEcoPills(); updateDailyBadge();
@@ -1951,6 +2034,7 @@ function showMap() {
   setGameVisible(false);
   document.getElementById('menuScreen').style.display = 'none';
   document.getElementById('shopScreen').style.display = 'none';
+  document.getElementById('settingsScreen').style.display = 'none';
   document.getElementById('overlay').style.display = 'none';
   buildGalaxyMap();
   document.getElementById('mapScreen').style.display = 'flex';
@@ -1987,7 +2071,8 @@ document.getElementById('playBtn').addEventListener('click', showMap);
 document.getElementById('mapBackBtn').addEventListener('click', showMenu);
 document.getElementById('shopBtn').addEventListener('click', showShop);
 document.getElementById('shopBackBtn').addEventListener('click', showMenu);
-document.getElementById('settingsBtn').addEventListener('click', () => showComingSoon('Settings'));
+document.getElementById('settingsBtn').addEventListener('click', showSettings);
+document.getElementById('settingsBackBtn').addEventListener('click', showMenu);
 document.getElementById('muteBtn').addEventListener('click', toggleBgmMute);
 document.getElementById('dailyGiftBtn').addEventListener('click', openDailyGift);
 
@@ -2005,6 +2090,7 @@ fitToViewport();
 
 loadEconomy();
 loadPowerInventory();
+loadSettings();
 showMenu();
 requestAnimationFrame(loop);
 </script>

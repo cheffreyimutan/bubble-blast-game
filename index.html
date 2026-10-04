@@ -1088,7 +1088,7 @@ function popCluster(cells, label) {
     const type = types[Math.floor(Math.random() * types.length)];
     const origin = cells[Math.floor(Math.random() * cells.length)];
     const ox = cellX(origin[0], origin[1]), oy = cellY(origin[0]);
-    powerPickups.push({ x: ox, y: oy, x0: ox, baseY: oy, fallSpeed: 22, type, seed: Math.random() });
+    powerPickups.push({ x: ox, y: oy, x0: ox, baseY: oy, fallSpeed: 8, type, seed: Math.random() });
   }
 }
 
@@ -1513,8 +1513,8 @@ function updateRings() {
 function updatePowerPickups(dt) {
   for (const p of powerPickups) {
     p.baseY += p.fallSpeed * dt;
-    p.y = p.baseY + Math.sin(timeNow * 1.8 + p.seed * 10) * 5;
-    p.x = p.x0 + Math.sin(timeNow * 1.1 + p.seed * 7) * 12;
+    p.y = p.baseY + Math.sin(timeNow * 1.6 + p.seed * 10) * 6;
+    p.x = p.x0 + Math.sin(timeNow * 0.7 + p.seed * 7) * 22 + Math.sin(timeNow * 1.9 + p.seed * 3) * 7;
   }
   powerPickups = powerPickups.filter(p => !p.caught && p.y < H + 30);
 }

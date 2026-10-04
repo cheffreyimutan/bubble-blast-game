@@ -1516,7 +1516,7 @@ function popCluster(cells, label) {
     clearTimeout(window.__comboT);
     window.__comboT = setTimeout(() => { el.classList.remove('show'); }, 700);
   }
-  if (Math.random() < 0.18) {
+  if (Math.random() < 0.08) {
     const types = [GUIDE, COLORBOMB, RAINBOW, SWAP];
     const type = types[Math.floor(Math.random() * types.length)];
     const origin = cells[Math.floor(Math.random() * cells.length)];
@@ -2066,7 +2066,7 @@ function draw() {
     ctx.save();
     ctx.translate(p.x, p.y);
 
-    const haloR = RADIUS * (1.5 + pulse * 0.35);
+    const haloR = RADIUS * (1.9 + pulse * 0.45);
     const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, haloR);
     halo.addColorStop(0, `rgba(255,216,74,${0.4 * pulse})`);
     halo.addColorStop(1, 'rgba(255,216,74,0)');
@@ -2074,14 +2074,14 @@ function draw() {
     ctx.beginPath(); ctx.arc(0, 0, haloR, 0, Math.PI * 2); ctx.fill();
 
     ctx.shadowColor = 'rgba(255,230,140,0.9)';
-    ctx.shadowBlur = 14;
-    const grad = ctx.createRadialGradient(-4, -4, 1, 0, 0, RADIUS * 0.78);
+    ctx.shadowBlur = 18;
+    const grad = ctx.createRadialGradient(-4, -4, 1, 0, 0, RADIUS * 1.1);
     grad.addColorStop(0, 'rgba(255,255,255,0.95)'); grad.addColorStop(1, 'rgba(255,216,74,0.75)');
     ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.arc(0, 0, RADIUS * 0.78, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, RADIUS * 1.1, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.font = `${RADIUS * 0.85}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.font = `${RADIUS * 1.2}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(def ? def.icon : '✨', 0, 1);
     ctx.restore();
   }

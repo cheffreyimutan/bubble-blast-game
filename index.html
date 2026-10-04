@@ -90,7 +90,7 @@
     transition: opacity 0.15s, transform 0.15s;
   }
   #combo.show { opacity: 1; transform: scale(1); }
-  #overlay, #menuScreen, #mapScreen {
+  #overlay, #menuScreen, #mapScreen, #shopScreen {
     position: absolute; inset: 0;
     border-radius: 16px; color: #fff; text-align: center;
     display: none; flex-direction: column; align-items: center; justify-content: center;
@@ -168,7 +168,7 @@
     font-weight: 900; font-size: 12px;
     animation: starPop 0.4s cubic-bezier(.34,1.56,.64,1) forwards;
   }
-  #menuScreen, #mapScreen {
+  #menuScreen, #mapScreen, #shopScreen {
     background: radial-gradient(ellipse at top, #2d1b4e, #14102a);
   }
   #overlay h1, #menuScreen h1 { margin: 0 0 6px; font-size: 28px; font-family: 'Fredoka', system-ui, sans-serif; font-weight: 700; }
@@ -227,6 +227,26 @@
     background: radial-gradient(ellipse at top, #1d1240, #07050f);
   }
   #mapScreen h2 { margin: 0 0 10px; font-size: 20px; }
+  #shopScreen { justify-content: flex-start; padding: 50px 16px 16px; }
+  #shopScreen h2 { margin: 0 0 8px; font-size: 24px; font-family: 'Fredoka', sans-serif; font-weight: 700; }
+  #shopScroll { position: relative; width: 100%; flex: 1; overflow-y: auto; scrollbar-width: thin; }
+  #shopCards { display: flex; flex-direction: column; gap: 12px; padding: 4px 2px 80px; }
+  .shopCard {
+    border-radius: 24px; padding: 16px; background: var(--cream); color: var(--ink);
+    box-shadow: 0 6px 0 rgba(0,0,0,0.25); display: flex; align-items: center; gap: 12px; text-align: left;
+  }
+  .shopCard .icon {
+    flex: none; width: 52px; height: 52px; border-radius: 18px;
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
+  }
+  .shopCard .info { flex: 1; min-width: 0; }
+  .shopCard .info .title { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 17px; }
+  .shopCard .info .sub { font-size: 12px; font-weight: 700; color: var(--muted-ink); }
+  .shopCard .buy {
+    flex: none; height: 42px; padding: 0 14px; border: none; border-radius: 14px;
+    font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer;
+  }
+  .shopCard .buy:active { transform: translateY(2px); }
   #galaxyScroll {
     position: relative; width: 100%; flex: 1;
     overflow-y: auto; overflow-x: hidden;
@@ -328,6 +348,15 @@
     <button class="btn secondary" id="mapBackBtn">Back</button>
   </div>
 
+  <div id="shopScreen">
+    <h2>Shop</h2>
+    <div class="ecoBar"></div>
+    <div id="shopScroll">
+      <div id="shopCards"></div>
+    </div>
+    <button class="btn secondary" id="shopBackBtn">Back</button>
+  </div>
+
   <div id="hud">
     <span id="levelLabel">1-1</span>
     <span id="scoreLabel">Score: 0</span>
@@ -389,7 +418,7 @@ let powerPickups = [];
 let guideUntil = -10;
 const BUBBLE_ALPHA = 0.8;
 let keyLeft = false, keyRight = false;
-const MOVE_SPEED = 260;
+const ROT_SPEED = 2.4;
 const LAUNCHER_SCALE = 1.8;
 let launcherRecoilAt = -10;
 
@@ -397,7 +426,7 @@ let timeNow = 0, lastFrameTime = 0;
 let appState = 'menu'; // 'menu' | 'map' | 'playing'
 let currentLevel = 1, levelConfig = null, levelTimeLeft = 0, levelStartBubbleCount = 0;
 
-let shooterX = W / 2;
+const shooterX = W / 2;
 const shooterY = H - 50;
 const KILL_LINE_Y = shooterY - RADIUS * 3.6;
 
@@ -1058,7 +1087,8 @@ function popCluster(cells, label) {
     const types = [GUIDE, COLORBOMB, RAINBOW, SWAP];
     const type = types[Math.floor(Math.random() * types.length)];
     const origin = cells[Math.floor(Math.random() * cells.length)];
-    powerPickups.push({ x: cellX(origin[0], origin[1]), y: cellY(origin[0]), vy: 1, type, seed: Math.random() });
+    const ox = cellX(origin[0], origin[1]), oy = cellY(origin[0]);
+    powerPickups.push({ x: ox, y: oy, x0: ox, baseY: oy, fallSpeed: 22, type, seed: Math.random() });
   }
 }
 
@@ -1337,6 +1367,54 @@ function showComingSoon(label) {
   showOverlay(label, 'Coming soon!', 'Close', showMenu);
 }
 
+const BOOSTER_BUNDLE_COST = 150;
+function buyBoosterBundle() {
+  if (!spendCoins(BOOSTER_BUNDLE_COST)) {
+    showOverlay('Not enough coins', `You need ${BOOSTER_BUNDLE_COST} 🪙 for this bundle.`, 'OK', showShop);
+    return;
+  }
+  for (const def of POWER_DEFS) powerInventory[def.key] = (powerInventory[def.key] || 0) + 1;
+  savePowerInventory();
+  renderEcoPills();
+  showOverlay('Bundle Purchased!', '+1 of every power-up added to your inventory.', 'Nice', showShop);
+}
+function buyStub(label) {
+  showOverlay(label, 'Coming soon! This needs real payment processing, which isn\'t wired up yet.', 'Close', showShop);
+}
+function buildShopCards() {
+  const el = document.getElementById('shopCards');
+  el.innerHTML = `
+    <div class="shopCard">
+      <div class="icon" style="background:linear-gradient(135deg,#B28CFF,#8A62E6);">🎁</div>
+      <div class="info"><div class="title">Booster Bundle</div><div class="sub">+1 of every power-up</div></div>
+      <button class="buy" style="background:var(--yellow);color:var(--ink);box-shadow:0 4px 0 var(--yellow-sh);" id="buyBundleBtn">${BOOSTER_BUNDLE_COST} 🪙</button>
+    </div>
+    <div class="shopCard">
+      <div class="icon" style="background:#2B2150;color:var(--yellow);font-family:'Fredoka';font-size:12px;line-height:1.1;">NO<br>ADS</div>
+      <div class="info"><div class="title">Remove Ads</div><div class="sub">No banners or breaks. Rewarded ads stay optional.</div></div>
+      <button class="buy" style="background:var(--mint);color:var(--mint-ink);box-shadow:0 4px 0 var(--mint-sh);" id="buyNoAdsBtn">$2.99</button>
+    </div>
+    <div class="shopCard">
+      <div class="icon" style="background:linear-gradient(135deg,#FF7EB6,#B28CFF);">🚀</div>
+      <div class="info"><div class="title">Starter Pack</div><div class="sub">500 coins + 10 boosters</div></div>
+      <button class="buy" style="background:var(--pink);color:var(--cream);box-shadow:0 4px 0 var(--pink-sh);" id="buyStarterBtn">$1.99</button>
+    </div>`;
+  document.getElementById('buyBundleBtn').onclick = buyBoosterBundle;
+  document.getElementById('buyNoAdsBtn').onclick = () => buyStub('Remove Ads');
+  document.getElementById('buyStarterBtn').onclick = () => buyStub('Starter Pack');
+}
+function showShop() {
+  playMenuBgm();
+  appState = 'shop';
+  setGameVisible(false);
+  document.getElementById('menuScreen').style.display = 'none';
+  document.getElementById('mapScreen').style.display = 'none';
+  document.getElementById('overlay').style.display = 'none';
+  buildShopCards();
+  renderEcoPills();
+  document.getElementById('shopScreen').style.display = 'flex';
+}
+
 function nearestEmptyCell(x, y) {
   let best = null, bestDist = Infinity;
   const approxR = Math.max(0, Math.round((y - TOP_MARGIN - RADIUS) / ROW_H));
@@ -1432,21 +1510,30 @@ function updateRings() {
   for (const r of rings) r.life -= 0.045;
   rings = rings.filter(r => r.life > 0);
 }
-function updatePowerPickups() {
+function updatePowerPickups(dt) {
   for (const p of powerPickups) {
-    p.vy += 0.22; p.y += p.vy;
-    const dx = p.x - shooterX, dy = p.y - shooterY;
-    if (!p.caught && Math.abs(dy) < RADIUS * 1.5 && Math.abs(dx) < RADIUS * LAUNCHER_SCALE * 0.9) {
-      p.caught = true;
-      powerInventory[p.type] = (powerInventory[p.type] || 0) + 1;
-      savePowerInventory();
-      spawnParticles(p.x, p.y, '#ffd84a', 14);
-      popText(p.x, p.y - 10, '+1', '#ffd84a');
-      sfxPop();
-      renderPowerPanel();
-    }
+    p.baseY += p.fallSpeed * dt;
+    p.y = p.baseY + Math.sin(timeNow * 1.8 + p.seed * 10) * 5;
+    p.x = p.x0 + Math.sin(timeNow * 1.1 + p.seed * 7) * 12;
   }
   powerPickups = powerPickups.filter(p => !p.caught && p.y < H + 30);
+}
+function catchPickup(p) {
+  p.caught = true;
+  powerInventory[p.type] = (powerInventory[p.type] || 0) + 1;
+  savePowerInventory();
+  spawnParticles(p.x, p.y, '#ffd84a', 14);
+  popText(p.x, p.y - 10, '+1', '#ffd84a');
+  sfxPop();
+  renderPowerPanel();
+}
+function tryCatchPickupAt(x, y) {
+  for (const p of powerPickups) {
+    if (p.caught) continue;
+    const dx = p.x - x, dy = p.y - y;
+    if (dx * dx + dy * dy < (RADIUS * 1.6) * (RADIUS * 1.6)) { catchPickup(p); return true; }
+  }
+  return false;
 }
 
 function draw() {
@@ -1494,15 +1581,26 @@ function draw() {
 
   for (const p of powerPickups) {
     const def = POWER_DEFS.find(d => d.key === p.type);
-    const wob = Math.sin(timeNow * 5 + p.seed * 10) * 3;
+    const pulse = 0.7 + 0.3 * Math.sin(timeNow * 3 + p.seed * 10);
     ctx.save();
-    ctx.translate(p.x + wob, p.y);
-    const grad = ctx.createRadialGradient(-4, -4, 1, 0, 0, RADIUS * 0.75);
-    grad.addColorStop(0, 'rgba(255,255,255,0.9)'); grad.addColorStop(1, 'rgba(255,216,74,0.65)');
+    ctx.translate(p.x, p.y);
+
+    const haloR = RADIUS * (1.5 + pulse * 0.35);
+    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, haloR);
+    halo.addColorStop(0, `rgba(255,216,74,${0.4 * pulse})`);
+    halo.addColorStop(1, 'rgba(255,216,74,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(0, 0, haloR, 0, Math.PI * 2); ctx.fill();
+
+    ctx.shadowColor = 'rgba(255,230,140,0.9)';
+    ctx.shadowBlur = 14;
+    const grad = ctx.createRadialGradient(-4, -4, 1, 0, 0, RADIUS * 0.78);
+    grad.addColorStop(0, 'rgba(255,255,255,0.95)'); grad.addColorStop(1, 'rgba(255,216,74,0.75)');
     ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.arc(0, 0, RADIUS * 0.75, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.font = `${RADIUS * 0.8}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.beginPath(); ctx.arc(0, 0, RADIUS * 0.78, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = `${RADIUS * 0.85}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(def ? def.icon : '✨', 0, 1);
     ctx.restore();
   }
@@ -1652,20 +1750,22 @@ function loop(ts) {
     levelTimeLeft -= dt;
     if (levelTimeLeft <= 0) { levelTimeLeft = 0; failLevel("Time's up!"); }
     if (dt > 0) {
-      const minX = 42, maxX = W - 42;
-      if (keyLeft) shooterX = Math.max(minX, shooterX - MOVE_SPEED * dt);
-      if (keyRight) shooterX = Math.min(maxX, shooterX + MOVE_SPEED * dt);
+      const minA = -Math.PI + 0.1, maxA = -0.1;
+      if (keyLeft) aimAngle = Math.max(minA, aimAngle - ROT_SPEED * dt);
+      if (keyRight) aimAngle = Math.min(maxA, aimAngle + ROT_SPEED * dt);
     }
-    updateFlying(); updateParticles(); updateFalling(); updateTexts(); updateRings(); updatePowerPickups();
+    updateFlying(); updateParticles(); updateFalling(); updateTexts(); updateRings(); updatePowerPickups(dt);
   }
   draw();
   requestAnimationFrame(loop);
 }
 
-function pointerAngleFrom(clientX, clientY) {
+function canvasXY(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
-  const x = (clientX - rect.left) * (W / rect.width);
-  const y = (clientY - rect.top) * (H / rect.height);
+  return [(clientX - rect.left) * (W / rect.width), (clientY - rect.top) * (H / rect.height)];
+}
+function pointerAngleFrom(clientX, clientY) {
+  const [x, y] = canvasXY(clientX, clientY);
   let a = Math.atan2(y - shooterY, x - shooterX);
   if (a > 0) a = a - Math.PI * 2;
   a = Math.max(-Math.PI + 0.1, Math.min(-0.1, a));
@@ -1673,9 +1773,22 @@ function pointerAngleFrom(clientX, clientY) {
 }
 
 canvas.addEventListener('mousemove', (e) => { aimAngle = pointerAngleFrom(e.clientX, e.clientY); });
-canvas.addEventListener('click', (e) => { aimAngle = pointerAngleFrom(e.clientX, e.clientY); shoot(); });
+canvas.addEventListener('click', (e) => {
+  const [x, y] = canvasXY(e.clientX, e.clientY);
+  if (tryCatchPickupAt(x, y)) return;
+  aimAngle = pointerAngleFrom(e.clientX, e.clientY);
+  shoot();
+});
 canvas.addEventListener('touchmove', (e) => { e.preventDefault(); const t = e.touches[0]; aimAngle = pointerAngleFrom(t.clientX, t.clientY); }, { passive: false });
-canvas.addEventListener('touchend', (e) => { e.preventDefault(); shoot(); }, { passive: false });
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  if (t) {
+    const [x, y] = canvasXY(t.clientX, t.clientY);
+    if (tryCatchPickupAt(x, y)) return;
+  }
+  shoot();
+}, { passive: false });
 
 window.addEventListener('keydown', (e) => {
   if (appState !== 'playing') return;
@@ -1715,6 +1828,7 @@ function showMenu() {
   appState = 'menu';
   setGameVisible(false);
   document.getElementById('mapScreen').style.display = 'none';
+  document.getElementById('shopScreen').style.display = 'none';
   document.getElementById('overlay').style.display = 'none';
   document.getElementById('menuScreen').style.display = 'flex';
   regenLives(); renderEcoPills(); updateDailyBadge();
@@ -1836,6 +1950,7 @@ function showMap() {
   appState = 'map';
   setGameVisible(false);
   document.getElementById('menuScreen').style.display = 'none';
+  document.getElementById('shopScreen').style.display = 'none';
   document.getElementById('overlay').style.display = 'none';
   buildGalaxyMap();
   document.getElementById('mapScreen').style.display = 'flex';
@@ -1847,7 +1962,6 @@ function resetRuntimeState() {
   particles = []; fallingBubbles = []; texts = []; rings = []; flying = null;
   currentBubble = null; nextBubble = null;
   armedPower = null; guideUntil = -10; powerPickups = [];
-  shooterX = W / 2;
 }
 
 function startLevel(level) {
@@ -1871,7 +1985,8 @@ function startLevel(level) {
 
 document.getElementById('playBtn').addEventListener('click', showMap);
 document.getElementById('mapBackBtn').addEventListener('click', showMenu);
-document.getElementById('shopBtn').addEventListener('click', () => showComingSoon('Shop'));
+document.getElementById('shopBtn').addEventListener('click', showShop);
+document.getElementById('shopBackBtn').addEventListener('click', showMenu);
 document.getElementById('settingsBtn').addEventListener('click', () => showComingSoon('Settings'));
 document.getElementById('muteBtn').addEventListener('click', toggleBgmMute);
 document.getElementById('dailyGiftBtn').addEventListener('click', openDailyGift);

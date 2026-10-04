@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Pop A Bobba</string>
-    <string name="title_activity_main">Pop A Bobba</string>
+    <string name="app_name">Pop-A-Boba</string>
+    <string name="title_activity_main">Pop-A-Boba</string>
     <string name="package_name">com.cheffrey.popabobba</string>
     <string name="custom_url_scheme">com.cheffrey.popabobba</string>
 </resources>

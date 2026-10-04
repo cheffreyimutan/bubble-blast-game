@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pop-a-bobba",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8015", "--directory", "www"],
+      "port": 8015
+    }
+  ]
+}

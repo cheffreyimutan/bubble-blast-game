@@ -2,7 +2,7 @@
   "name": "pop-a-bobba",
   "version": "1.0.0",
   "private": true,
-  "description": "Pop A Bobba - milk tea bubble shooter",
+  "description": "Pop-A-Boba - milk tea bubble shooter",
   "scripts": {
     "sync": "cap sync"
   },

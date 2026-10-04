@@ -219,14 +219,15 @@
   #menuScreen .subtitle { font-size: 12px; opacity: 0.6; margin: 0 0 24px; }
   .menuFloaters { position: absolute; inset: 0; pointer-events: none; }
   .menuFloaters span {
-    position: absolute; left: var(--x); bottom: -40px; font-size: 26px; opacity: 0;
+    position: absolute; left: var(--x); bottom: -56px; font-size: 42px; opacity: 0;
     animation: floatUp 10s linear infinite; animation-delay: var(--d);
+    filter: drop-shadow(0 4px 8px rgba(74,43,26,.18));
   }
   @keyframes floatUp {
     0% { transform: translateY(0) scale(var(--s)); opacity: 0; }
-    8% { opacity: 0.4; }
-    92% { opacity: 0.4; }
-    100% { transform: translateY(-560px) scale(var(--s)); opacity: 0; }
+    8% { opacity: 0.6; }
+    92% { opacity: 0.6; }
+    100% { transform: translateY(-620px) scale(var(--s)); opacity: 0; }
   }
   .menuUtilRow {
     position: absolute; bottom: 18px; left: 0; right: 0;
@@ -524,12 +525,12 @@
   <video id="introVideo" playsinline webkit-playsinline preload="none" src="intro.mp4"></video>
   <div id="splashScreen">
     <div class="menuFloaters" aria-hidden="true">
-      <span style="--x:14%; --d:0s; --s:0.9">🧋</span>
-      <span style="--x:76%; --d:2s; --s:0.65">✨</span>
-      <span style="--x:34%; --d:5.2s; --s:0.75">🍃</span>
-      <span style="--x:58%; --d:1.6s; --s:0.55">⭐</span>
-      <span style="--x:90%; --d:7s; --s:0.85">🧋</span>
-      <span style="--x:22%; --d:3.6s; --s:0.6">🫧</span>
+      <span style="--x:10%; --d:0s; --s:1.2">🧋</span>
+      <span style="--x:76%; --d:2s; --s:0.95">✨</span>
+      <span style="--x:30%; --d:5.2s; --s:1.05">🍃</span>
+      <span style="--x:58%; --d:1.6s; --s:0.85">⭐</span>
+      <span style="--x:90%; --d:7s; --s:1.15">🧋</span>
+      <span style="--x:18%; --d:3.6s; --s:0.9">🫧</span>
     </div>
     <img class="splashLogo" src="logo.webp" alt="Pop-A-Boba">
     <div class="splashTag">MILK TEA SHOOTER</div>
@@ -552,13 +553,15 @@
 
   <div id="menuScreen">
     <div class="menuFloaters" aria-hidden="true">
-      <span style="--x:10%; --d:0s; --s:1">🧋</span>
-      <span style="--x:80%; --d:2.4s; --s:0.7">✨</span>
-      <span style="--x:30%; --d:4.8s; --s:0.8">🍃</span>
-      <span style="--x:62%; --d:1.2s; --s:0.6">⭐</span>
-      <span style="--x:88%; --d:6.5s; --s:0.9">🧋</span>
-      <span style="--x:20%; --d:7.8s; --s:0.65">✨</span>
-      <span style="--x:48%; --d:3.3s; --s:0.75">🫧</span>
+      <span style="--x:6%; --d:0s; --s:1.3">🧋</span>
+      <span style="--x:80%; --d:2.4s; --s:1">✨</span>
+      <span style="--x:28%; --d:4.8s; --s:1.1">🍃</span>
+      <span style="--x:62%; --d:1.2s; --s:0.9">⭐</span>
+      <span style="--x:88%; --d:6.5s; --s:1.2">🧋</span>
+      <span style="--x:18%; --d:7.8s; --s:0.95">✨</span>
+      <span style="--x:48%; --d:3.3s; --s:1.05">🫧</span>
+      <span style="--x:70%; --d:5.6s; --s:0.85">⭐</span>
+      <span style="--x:40%; --d:9s; --s:1.15">🧋</span>
     </div>
     <div class="ecoBar"></div>
     <div class="homeSideCol homeSideLeft">
@@ -618,7 +621,7 @@
   <div id="combo"></div>
   <div id="powerPanel"></div>
   <canvas id="game"></canvas>
-  <div id="hint" style="display:none">←/→ or mouse to aim · space/click to fire · clear the board before time runs out</div>
+  <div id="hint" style="display:none">drag to aim, release to shoot · clear the board before time runs out</div>
 
   <div id="overlay">
     <div class="overlayCard">
@@ -2263,7 +2266,7 @@ function maybeShowTutorial() {
   if (seen) return;
   showOverlay(
     'How to Play',
-    'Aim with your mouse or ←/→, fire with click or space. Match 3+ same colors to pop them — and use the power-ups on the right for big plays!',
+    'Drag to aim the straw, then release to shoot. Match 3+ same-flavor pearls to pop them — and tap the power-ups in the corner for big plays!',
     "Got it!",
     () => {
       document.getElementById('overlay').style.display = 'none';

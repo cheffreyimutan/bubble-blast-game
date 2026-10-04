@@ -868,16 +868,19 @@ function showRewardedAd(onComplete) {
 }
 
 function getLevelConfig(level) {
+  // tier = which of the 10 worlds this level belongs to (0-9). Every lever below is tuned to
+  // keep changing across the *entire* 100-level span instead of maxing out in the first couple
+  // of worlds - rows/colorCount still level off partway through (there are real structural and
+  // palette ceilings), but stoneChance, lineDrops and timeLimit now scale all the way to world 10.
   const tier = Math.floor((level - 1) / 10);
   return {
     level,
     tier,
-    rows: Math.min(5 + Math.floor(level / 4), 9),
-    timeLimit: Math.max(40, 100 - level * 2),
-    colorCount: Math.min(3 + Math.floor(level / 6), COLORS.length),
-    specialChance: 0.17 + tier * 0.05,
-    stoneChance: tier > 0 ? Math.min(0.25, 0.05 + tier * 0.05) : 0,
-    lineDrops: Math.max(0, Math.min(Math.floor(level / 3), 5))
+    rows: Math.min(5 + Math.floor(level / 10), 10),
+    timeLimit: Math.max(32, 100 - level * 0.7),
+    colorCount: Math.min(3 + Math.floor(level / 8), COLORS.length),
+    stoneChance: Math.min(0.3, tier * 0.035),
+    lineDrops: Math.min(tier, 7)
   };
 }
 
@@ -887,7 +890,12 @@ const WORLD_THEMES = [
   { name: 'Matcha Meadow', color: '#7CB342', icon: '🍵' },
   { name: 'Taro Town', color: '#B28CFF', icon: '🍠' },
   { name: 'Strawberry Fields', color: '#FF6FA5', icon: '🍓' },
-  { name: 'Mango Grove', color: '#FFB648', icon: '🥭' }
+  { name: 'Mango Grove', color: '#FFB648', icon: '🥭' },
+  { name: 'Honey Oolong Hills', color: '#E8A33D', icon: '🍯' },
+  { name: 'Thai Tea Terrace', color: '#E8732C', icon: '🍊' },
+  { name: 'Lychee Lagoon', color: '#FF8FA3', icon: '🌸' },
+  { name: 'Black Sesame Summit', color: '#4A3728', icon: '⚫' },
+  { name: 'Golden Pearl Peak', color: '#FFD24C', icon: '👑' }
 ];
 function themeForWorld(worldIdx) { return WORLD_THEMES[worldIdx % WORLD_THEMES.length]; }
 function worldLabel(level) {
@@ -1658,7 +1666,7 @@ function winLevel() {
   const prog = loadProgress();
   const prevStars = (prog.stars && prog.stars[currentLevel]) || 0;
   const isNewBest = stars > prevStars;
-  prog.unlocked = Math.max(prog.unlocked, currentLevel + 1);
+  prog.unlocked = Math.min(100, Math.max(prog.unlocked, currentLevel + 1));
   prog.stars = prog.stars || {};
   prog.stars[currentLevel] = Math.max(prevStars, stars);
   saveProgress(prog);
@@ -2316,7 +2324,7 @@ function drawPlanet(mctx, x, y, r, color, locked, hasRing) {
 
 function buildGalaxyMap() {
   const prog = loadProgress();
-  const maxLevel = Math.max(20, prog.unlocked + 5);
+  const maxLevel = Math.min(100, Math.max(20, prog.unlocked + 5));
   const numWorlds = Math.ceil(maxLevel / LEVELS_PER_WORLD);
   const mapNodes = document.getElementById('mapNodes');
   const mapCanvas = document.getElementById('mapCanvas');

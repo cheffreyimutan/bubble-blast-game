@@ -721,12 +721,19 @@ const COLS = 9, TOP_MARGIN = 130, LEFT_MARGIN = (W - COLS * DIAM) / 2;
 
 const COLORS = ['#FF6FA5', '#7CB342', '#C17F3E', '#FFB648', '#B28CFF']; // strawberry, matcha, brown sugar, mango, taro
 // each flavor has its own little personality, like the character sheet: cheerful, playful, cranky, anxious, dreamy
-const PERSONALITY_MOODS = {
-  '#FF6FA5': ['happy', 'excited', 'shy'],
-  '#7CB342': ['silly', 'curious', 'happy'],
-  '#C17F3E': ['angry', 'grumpy', 'surprised'],
-  '#FFB648': ['panic', 'nervous', 'surprised'],
-  '#B28CFF': ['content', 'sleepy', 'happy']
+// Real character art sprite sheet: 7 personality rows x 14 labeled poses each, after a
+// wider "info card" at the start of every row. Grid measured by hand against the actual
+// image (card width, then an even 14-cell split of the remainder; pose art sits in the
+// top square portion of each row, with its text label underneath that we crop away).
+const pearlSprite = new Image();
+pearlSprite.src = 'pearl-sprites.png';
+const PEARL_CARD_W = 160, PEARL_CELL_W = (1125 - 160) / 14, PEARL_ROW_H = 750 / 7, PEARL_FACE_H = PEARL_ROW_H * 0.78;
+const PEARL_PERSONALITY = {
+  '#FF6FA5': { row: 1, moods: [[1, 'Happy'], [2, 'Excited'], [6, 'Shy']] },       // Crystal Boba - cheerful
+  '#7CB342': { row: 2, moods: [[2, 'Silly'], [4, 'Curious'], [1, 'Happy']] },    // Grass Boba - playful
+  '#C17F3E': { row: 0, moods: [[2, 'Angry'], [1, 'Grumpy'], [4, 'Surprised']] }, // Pearl Boba - cranky
+  '#FFB648': { row: 3, moods: [[2, 'Panic'], [3, 'Nervous'], [4, 'Surprised']] },// Orange Boba - anxious
+  '#B28CFF': { row: 5, moods: [[1, 'Confident'], [2, 'Proud'], [5, 'Happy']] }   // Purple Boba - bold
 };
 const BOMB = 'bomb', AIRSTRIKE = 'airstrike', TIMED = 'timed', RAINBOW = 'rainbow', STONE = 'stone';
 const GUIDE = 'guide', COLORBOMB = 'colorbomb', SWAP = 'swap';
@@ -1342,111 +1349,16 @@ function drawBubble(x, y, color, opts = {}) {
     ctx.beginPath(); ctx.moveTo(-r*0.4, -r*0.3); ctx.lineTo(-r*0.05, r*0.05); ctx.lineTo(-r*0.25, r*0.45); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(r*0.3, -r*0.5); ctx.lineTo(r*0.1, -r*0.1); ctx.lineTo(r*0.4, r*0.3); ctx.stroke();
   } else if (!SPECIALS.includes(color)) {
-    const pool = PERSONALITY_MOODS[color] || ['happy', 'surprised', 'angry'];
-    const mood = pool[Math.floor(seed * pool.length) % pool.length];
-    const blushMul = mood === 'shy' ? 1.5 : 1;
-    ctx.fillStyle = 'rgba(255,90,120,0.3)';
-    ctx.beginPath(); ctx.ellipse(-r*0.46, r*0.18, r*0.16*blushMul, r*0.1*blushMul, 0, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(r*0.46, r*0.18, r*0.16*blushMul, r*0.1*blushMul, 0, 0, Math.PI*2); ctx.fill();
-
-    if (mood === 'panic') {
-      const jitter = Math.sin(timeNow * 40 + seed * 50) * 0.4;
-      ctx.save(); ctx.translate(jitter, 0);
-      ctx.strokeStyle = 'rgba(20,10,25,0.85)'; ctx.lineWidth = r*0.08; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(-r*0.46, -r*0.28); ctx.lineTo(-r*0.18, -r*0.4); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(r*0.46, -r*0.28); ctx.lineTo(r*0.18, -r*0.4); ctx.stroke();
-      for (const side of [-1, 1]) {
-        const ex = side * r * 0.32;
-        ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(ex, -r*0.02, r*0.16, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = 'rgba(20,10,25,0.9)';
-        ctx.beginPath(); ctx.arc(ex, r*0.02, r*0.085, 0, Math.PI*2); ctx.fill();
-      }
-      ctx.strokeStyle = 'rgba(20,10,25,0.75)'; ctx.lineWidth = r*0.07;
-      ctx.beginPath(); ctx.ellipse(0, r*0.24, r*0.1, r*0.13, 0, 0, Math.PI*2); ctx.stroke();
-      const dropBob = Math.sin(timeNow * 6 + seed * 10) * 1.5;
-      ctx.fillStyle = 'rgba(140,200,255,0.85)';
-      ctx.beginPath();
-      ctx.moveTo(r*0.62, -r*0.5 + dropBob);
-      ctx.quadraticCurveTo(r*0.76, -r*0.26 + dropBob, r*0.62, -r*0.12 + dropBob);
-      ctx.quadraticCurveTo(r*0.48, -r*0.26 + dropBob, r*0.62, -r*0.5 + dropBob);
-      ctx.fill();
+    const info = PEARL_PERSONALITY[color];
+    if (info && pearlSprite.naturalWidth) {
+      const pick = info.moods[Math.floor(seed * info.moods.length) % info.moods.length];
+      const sx = PEARL_CARD_W + pick[0] * PEARL_CELL_W;
+      const sy = info.row * PEARL_ROW_H;
+      ctx.save();
+      bodyPath(); ctx.clip();
+      const dw = r * 1.95, dh = dw * (PEARL_FACE_H / PEARL_CELL_W);
+      ctx.drawImage(pearlSprite, sx, sy, PEARL_CELL_W, PEARL_FACE_H, -dw / 2, -dh / 2 - r * 0.08, dw, dh);
       ctx.restore();
-    } else if (mood === 'sleepy' || mood === 'content') {
-      ctx.strokeStyle = 'rgba(20,10,25,0.8)'; ctx.lineWidth = r*0.07; ctx.lineCap = 'round';
-      for (const side of [-1, 1]) {
-        const ex = side * r * 0.32;
-        ctx.beginPath();
-        if (mood === 'sleepy') ctx.arc(ex, -r*0.02, r*0.13, 0.15*Math.PI, 0.85*Math.PI);
-        else ctx.arc(ex, 0, r*0.14, Math.PI, 0, true);
-        ctx.stroke();
-      }
-      ctx.strokeStyle = 'rgba(20,10,25,0.75)'; ctx.lineWidth = r*0.09; ctx.lineCap = 'round';
-      ctx.beginPath();
-      if (mood === 'sleepy') { ctx.moveTo(-r*0.1, r*0.22); ctx.lineTo(r*0.1, r*0.22); }
-      else ctx.arc(0, r*0.08, r*0.2, 0.2*Math.PI, 0.8*Math.PI);
-      ctx.stroke();
-    } else if (mood === 'silly') {
-      ctx.strokeStyle = 'rgba(20,10,25,0.8)'; ctx.lineWidth = r*0.07; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.arc(-r*0.32, -r*0.04, r*0.13, 0.1*Math.PI, 0.9*Math.PI); ctx.stroke();
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(r*0.32, -r*0.06, r*0.2, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = 'rgba(20,10,25,0.9)';
-      ctx.beginPath(); ctx.arc(r*0.32 + look, -r*0.03, r*0.1, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = 'rgba(20,10,25,0.75)'; ctx.lineWidth = r*0.09; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.arc(0, r*0.08, r*0.24, 0.1*Math.PI, 0.9*Math.PI); ctx.stroke();
-      ctx.fillStyle = '#ff7a95';
-      ctx.beginPath(); ctx.ellipse(0, r*0.3, r*0.12, r*0.14, 0, 0, Math.PI); ctx.fill();
-    } else {
-      const eyeR = (mood === 'surprised' || mood === 'excited' || mood === 'nervous') ? r*0.22 : (mood === 'shy' ? r*0.15 : r*0.19);
-      if ((mood === 'angry' || mood === 'grumpy') && !blinking) {
-        ctx.strokeStyle = 'rgba(20,10,25,0.8)'; ctx.lineWidth = r*0.07; ctx.lineCap = 'round';
-        const tilt = mood === 'angry' ? r*0.24 : r*0.14;
-        ctx.beginPath(); ctx.moveTo(-r*0.46, -tilt); ctx.lineTo(-r*0.14, -r*0.1); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(r*0.46, -tilt); ctx.lineTo(r*0.14, -r*0.1); ctx.stroke();
-      }
-      if (mood === 'curious' && !blinking) {
-        ctx.strokeStyle = 'rgba(20,10,25,0.8)'; ctx.lineWidth = r*0.06; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.arc(r*0.32, -r*0.32, r*0.14, 1.1*Math.PI, 1.9*Math.PI); ctx.stroke();
-      }
-      for (const side of [-1, 1]) {
-        const ex = side * r * 0.32;
-        const shyClosed = mood === 'shy' && side === -1;
-        if (blinking || shyClosed) {
-          ctx.strokeStyle = 'rgba(20,10,25,0.8)'; ctx.lineWidth = r*0.07;
-          ctx.beginPath(); ctx.moveTo(ex - r*0.12, -r*0.05); ctx.lineTo(ex + r*0.12, -r*0.05); ctx.stroke();
-        } else {
-          ctx.fillStyle = '#fff';
-          ctx.beginPath(); ctx.arc(ex, -r*0.06, eyeR, 0, Math.PI*2); ctx.fill();
-          ctx.fillStyle = 'rgba(20,10,25,0.9)';
-          ctx.beginPath(); ctx.arc(ex + look, -r*0.03, r*0.1, 0, Math.PI*2); ctx.fill();
-          ctx.fillStyle = 'rgba(255,255,255,0.9)';
-          ctx.beginPath(); ctx.arc(ex + look - r*0.03, -r*0.08, r*0.035, 0, Math.PI*2); ctx.fill();
-        }
-      }
-      if (mood === 'nervous') {
-        const dropBob = Math.sin(timeNow * 6 + seed * 10) * 1.2;
-        ctx.fillStyle = 'rgba(140,200,255,0.85)';
-        ctx.beginPath();
-        ctx.moveTo(r*0.55, -r*0.42 + dropBob);
-        ctx.quadraticCurveTo(r*0.66, -r*0.24 + dropBob, r*0.55, -r*0.12 + dropBob);
-        ctx.quadraticCurveTo(r*0.44, -r*0.24 + dropBob, r*0.55, -r*0.42 + dropBob);
-        ctx.fill();
-      }
-      ctx.strokeStyle = 'rgba(20,10,25,0.75)'; ctx.lineWidth = r*0.09; ctx.lineCap = 'round';
-      ctx.beginPath();
-      if (mood === 'happy' || mood === 'curious') ctx.arc(0, r*0.1, r*0.26, 0.15*Math.PI, 0.85*Math.PI);
-      else if (mood === 'excited') ctx.arc(0, r*0.06, r*0.3, 0.1*Math.PI, 0.9*Math.PI);
-      else if (mood === 'angry') ctx.arc(0, r*0.34, r*0.22, 1.2*Math.PI, 1.8*Math.PI);
-      else if (mood === 'grumpy') { ctx.moveTo(-r*0.16, r*0.22); ctx.lineTo(r*0.16, r*0.22); }
-      else if (mood === 'shy') ctx.arc(0, r*0.14, r*0.14, 0.2*Math.PI, 0.8*Math.PI);
-      else if (mood === 'nervous') { ctx.moveTo(-r*0.12, r*0.22); ctx.lineTo(r*0.12, r*0.2); }
-      else ctx.ellipse(0, r*0.2, r*0.09, r*0.12, 0, 0, Math.PI*2);
-      ctx.stroke();
-      if (mood === 'excited') {
-        ctx.fillStyle = 'rgba(20,10,25,0.5)';
-        ctx.beginPath(); ctx.ellipse(0, r*0.16, r*0.18, r*0.08, 0, 0, Math.PI); ctx.fill();
-      }
     }
   } else if (color === BOMB) {
     ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = r*0.06;

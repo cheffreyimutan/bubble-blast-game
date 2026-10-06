@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "704253195747",
+    "project_id": "pop-a-boba",
+    "storage_bucket": "pop-a-boba.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:704253195747:android:7ba3c02494014dd6ae5cd6",
+        "android_client_info": {
+          "package_name": "com.cheffrey.popabobba"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "704253195747-tmn8fla1ugnqf5n12nufkmne2821ahd8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAvSfy51BBKrwAHlvF3EvMWP0KJHcN8tw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "704253195747-tmn8fla1ugnqf5n12nufkmne2821ahd8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

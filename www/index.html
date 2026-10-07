@@ -392,6 +392,23 @@
   .settingsLink:last-child { border-bottom: none; }
   .settingsLink .chev { margin-left: auto; color: #B3A9D3; font-family: 'Fredoka', sans-serif; font-size: 20px; }
   .settingsVersion { text-align: center; font-size: 12px; font-weight: 700; color: var(--soft-ink); margin-top: 14px; }
+  .signInCard {
+    width: 100%; display: flex; align-items: center; gap: 14px; padding: 16px;
+    border: none; border-radius: 22px; background: var(--cream); color: var(--ink);
+    text-align: left; cursor: pointer; box-shadow: 0 3px 0 var(--card-sh);
+  }
+  .signInCard:active { transform: translateY(2px); box-shadow: none; }
+  .signInCard.linked { background: linear-gradient(135deg, #E8F7EC, var(--cream)); }
+  .signInG {
+    flex: none; width: 40px; height: 40px; border-radius: 50%; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 18px; color: #4285F4;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+  .signInCard.linked .signInG { color: #34A853; }
+  .signInText { min-width: 0; }
+  .signInTitle { font-weight: 800; font-size: 15px; }
+  .signInSub { font-size: 12px; font-weight: 700; color: var(--muted-ink); margin-top: 1px; }
   #galaxyScroll {
     position: relative; width: 100%; flex: 1;
     overflow-y: auto; overflow-x: hidden;
@@ -1021,6 +1038,11 @@ let keyLeft = false, keyRight = false;
 const ROT_SPEED = 2.4;
 const LAUNCHER_SCALE = 1.8;
 let launcherRecoilAt = -10;
+// power-up activation feedback: a bright flash that settles into a colored glow around the
+// straw, so using a power-up reads as "something just happened to my straw" rather than just
+// a popText fading in the corner. powerFxUntil is when the whole effect (flash+glow) ends.
+const POWER_FX_FLASH = 0.15, POWER_FX_DURATION = 1.1;
+let powerFxUntil = 0, powerFxColor = '#ffd84a';
 
 let timeNow = 0, lastFrameTime = 0;
 let appState = 'menu'; // 'menu' | 'map' | 'playing' | 'endless' | 'paused'
@@ -1213,8 +1235,20 @@ function openDailyGift() {
     showOverlay('Nice!', `+${reward} pearls added to your wallet.`, 'Yay', showMenu);
   });
 }
-function showRewardedAd(onComplete) {
-  document.getElementById('overlay').style.display = 'none';
+// Google's official public TEST ad unit IDs - these only ever serve Google's own test
+// creatives (clearly labeled "Test Ad"), so they're safe to ship as a placeholder with no
+// AdMob account of our own. Swap for real ad unit IDs from an AdMob console before this needs
+// to earn real revenue - shipping these to production just means the "ad" never monetizes.
+const ADMOB_REWARDED_TEST_ID = 'ca-app-pub-3940256099942544/5224354917';
+function admobAvailable() {
+  try { return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob); }
+  catch (e) { return false; }
+}
+async function initAdsIfAvailable() {
+  if (!admobAvailable()) return;
+  try { await window.Capacitor.Plugins.AdMob.initialize({ initializeForTesting: true }); } catch (e) {}
+}
+function showFakeRewardedAd(onComplete) {
   const el = document.getElementById('adOverlay');
   const cd = document.getElementById('adCountdown');
   el.style.display = 'flex';
@@ -1230,6 +1264,22 @@ function showRewardedAd(onComplete) {
       cd.textContent = `Reward in ${t}s`;
     }
   }, 1000);
+}
+async function showRewardedAd(onComplete) {
+  document.getElementById('overlay').style.display = 'none';
+  if (admobAvailable()) {
+    try {
+      const AdMobPlugin = window.Capacitor.Plugins.AdMob;
+      await AdMobPlugin.prepareRewardVideoAd({ adId: ADMOB_REWARDED_TEST_ID, isTesting: true });
+      await AdMobPlugin.showRewardVideoAd();
+      onComplete();
+      return;
+    } catch (e) {
+      // no fill / native SDK hiccup - fall through to the fake placeholder so the player's
+      // "watch ad" tap still does something rather than silently failing
+    }
+  }
+  showFakeRewardedAd(onComplete);
 }
 
 function getLevelConfig(level) {
@@ -1617,6 +1667,9 @@ function powerActivationFX(label, color) {
   popText(shooterX, shooterY - 70, label, color);
   sfxPowerUp();
   buzz(20);
+  setBobaMood('excited', 1.0);
+  powerFxColor = color;
+  powerFxUntil = timeNow + POWER_FX_DURATION;
 }
 function activatePower(key) {
   if (!isGameplay() || gameOver) return;
@@ -2199,7 +2252,7 @@ function winLevel() {
   renderEcoPills();
   let adUsed = false;
   showOverlay('Level Complete!', `Score: ${score}`, 'Next Level', () => startLevel(currentLevel + 1), 'Map', showMap, {
-    stars, isNewBest, pearls: pearlsEarned, bobaMood: 'cool',
+    stars, isNewBest, pearls: pearlsEarned, bobaMood: 'cool', bobaAnim: ['cool', 'wink', 'laugh', 'wink'],
     badge: cameCloseToKillLine ? '😅 CLUTCH SAVE! +25' : null,
     adBtn: { label: '📺 Watch Ad · Double Pearls', onClick: () => {
       if (adUsed) return;
@@ -2253,13 +2306,18 @@ function failLevel(reason) {
     if (spendPearls(CONTINUE_COST)) { renderEcoPills(); grantContinue(); }
   }, null, null, {
     primaryDisabled: economy.pearls < CONTINUE_COST,
-    bobaMood: 'crying',
+    bobaMood: 'crying', bobaAnim: ['crying', 'sad'],
     adBtn: { label: '📺 Watch Ad · Continue Free', onClick: () => showRewardedAd(grantContinue) },
     ghostBtn: { label: 'Give up · −1 ♥', onClick: giveUpLevel }
   });
 }
 
+let overlayAnimHandle = null;
+function stopOverlayAnim() {
+  if (overlayAnimHandle) { clearInterval(overlayAnimHandle); overlayAnimHandle = null; }
+}
 function showOverlay(title, sub, primaryLabel, primaryFn, secondaryLabel, secondaryFn, opts = {}) {
+  stopOverlayAnim();
   document.getElementById('overlayTitle').textContent = title;
   document.getElementById('overlaySub').textContent = sub;
   const pBtn = document.getElementById('overlayPrimaryBtn');
@@ -2338,6 +2396,16 @@ function showOverlay(title, sub, primaryLabel, primaryFn, secondaryLabel, second
   // size, so it must run only after the overlay (and this card) are actually visible.
   document.getElementById('overlay').style.display = 'flex';
   if (opts.bobaMood) renderMoodInto(bobaEl, opts.bobaMood);
+  if (opts.bobaAnim && opts.bobaAnim.length > 1) {
+    let frame = 0;
+    overlayAnimHandle = setInterval(() => {
+      // self-terminating rather than requiring every one of this overlay's many hide call
+      // sites to also stop the animation - a dismissed overlay just lets this tick itself out
+      if (document.getElementById('overlay').style.display === 'none') { stopOverlayAnim(); return; }
+      frame = (frame + 1) % opts.bobaAnim.length;
+      renderMoodInto(bobaEl, opts.bobaAnim[frame]);
+    }, 450);
+  }
 }
 function showComingSoon(label) {
   showOverlay(label, 'Coming soon!', 'Close', showMenu);
@@ -2456,19 +2524,29 @@ function renderSettingsToggles() {
       <div class="label"><div class="t">${title}</div><div class="s">${sub}</div></div>
       <div class="toggleSwitch ${on ? 'on' : 'off'}"><div class="toggleKnob" style="left:${on ? 26 : 3}px;"></div></div>
     </button>`;
-  const googleRow = googleAuthAvailable()
+  const accountCard = googleAuthAvailable()
     ? (googleLinkedEmail
-        ? `<div class="settingsLink" style="cursor:default;"><span style="flex:1;">Google Account</span><span style="color:var(--muted-ink); font-weight:700;">${escapeHtml(googleLinkedEmail)}</span></div>`
-        : `<button class="settingsLink" id="linkGoogleLink"><span style="flex:1;">Link Google Account</span><span class="chev">›</span></button>`)
+        ? `<div class="signInCard linked">
+             <div class="signInG">✓</div>
+             <div class="signInText"><div class="signInTitle">Signed in</div><div class="signInSub">${escapeHtml(googleLinkedEmail)}</div></div>
+           </div>`
+        : `<button class="signInCard" id="linkGoogleLink">
+             <div class="signInG">G</div>
+             <div class="signInText"><div class="signInTitle">Sign in with Google</div><div class="signInSub">Back up your progress &amp; join the leaderboard</div></div>
+           </button>`)
     // always show *something* here rather than silently disappearing - if this shows up on a
     // real device it means googleAuthAvailable() returned false (Capacitor bridge/plugin not
     // detected), which is the actual diagnostic signal we need
-    : `<div class="settingsLink" style="cursor:default; opacity:.55;"><span style="flex:1;">Google Sign-In unavailable</span></div>`;
+    : `<div class="signInCard" style="opacity:.55; cursor:default;">
+         <div class="signInG">G</div>
+         <div class="signInText"><div class="signInTitle">Google Sign-In unavailable</div><div class="signInSub">Not supported on this build</div></div>
+       </div>`;
   panel.innerHTML = `
+    <div class="settingsGroupLabel">ACCOUNT</div>
+    ${accountCard}
     <div class="settingsGroupLabel">PLAYER</div>
     <div class="settingsGroup">
       <button class="settingsLink" id="editNicknameLink"><span style="flex:1;">Nickname</span><span style="color:var(--muted-ink); font-weight:700;">${escapeHtml(getPlayerName() || 'Not set')}</span> <span class="chev">›</span></button>
-      ${googleRow}
     </div>
     <div class="settingsGroupLabel">SOUND &amp; FEEL</div>
     <div class="settingsGroup">
@@ -2853,6 +2931,28 @@ function draw() {
   ctx.moveTo(-TUBE_HALF_W * 0.5, TUBE_TOP + RADIUS * 0.25);
   ctx.lineTo(-TUBE_HALF_W * 0.5, TUBE_BASE - RADIUS * 0.25);
   ctx.stroke();
+
+  const fxAge = POWER_FX_DURATION - (powerFxUntil - timeNow);
+  if (fxAge >= 0 && fxAge < POWER_FX_DURATION) {
+    ctx.save();
+    if (fxAge < POWER_FX_FLASH) {
+      // bright white flash for the first ~150ms, fading out fast
+      tubePath();
+      ctx.globalAlpha = 1 - fxAge / POWER_FX_FLASH;
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+    }
+    // colored glow for the rest of the window, gently pulsing and fading out at the very end
+    const glowT = Math.max(0, (fxAge - POWER_FX_FLASH) / (POWER_FX_DURATION - POWER_FX_FLASH));
+    tubePath();
+    ctx.globalAlpha = (1 - glowT) * (0.55 + Math.sin(timeNow * 10) * 0.25);
+    ctx.shadowColor = powerFxColor;
+    ctx.shadowBlur = RADIUS * 1.2;
+    ctx.lineWidth = RADIUS * 0.22;
+    ctx.strokeStyle = powerFxColor;
+    ctx.stroke();
+    ctx.restore();
+  }
 
   ctx.restore();
 
@@ -3569,7 +3669,7 @@ function failEndless() {
   showOverlay('Run Over!', `Final Score: ${finalScore} · ${fmtTime(endlessElapsed)} survived`, 'Try Again', () => startEndless(), 'Menu', showMenu, {
     badge: isNewLocalBest ? '🏆 NEW PERSONAL BEST!' : null,
     leaderboardBtn: true,
-    bobaMood: 'crying'
+    bobaMood: 'crying', bobaAnim: ['crying', 'sad']
   });
 }
 
@@ -3750,6 +3850,7 @@ fitToViewport();
 loadEconomy();
 loadPowerInventory();
 loadSettings();
+initAdsIfAvailable();
 runSplash();
 requestAnimationFrame(loop);
 </script>

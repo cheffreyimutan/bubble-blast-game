@@ -11,6 +11,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Chewy&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
+    /* some WebView builds (seen on certain Huawei/Honor devices) report a wildly inflated
+       var(--safe-b) even with no gesture nav bar present, which bloats every
+       layout that adds it in raw - capped once here so a bad reading can't blow up the whole
+       bottom nav/HUD, while real (small) insets on gesture-nav devices still come through. */
+    --safe-b: min(env(safe-area-inset-bottom), 24px);
     --outer: #1E130D;
     --cream1: #FCF1E2; --cream2: #F4DEC3; --cream3: #EAC8A2;
     --ink: #3B2418; --muted-ink: #7A5A45; --soft-ink: #9C6B4B;
@@ -33,7 +38,11 @@
   button, input, select, textarea { font-family: inherit; color: inherit; }
   html, body {
     margin: 0; width: 100%; height: 100%;
-    background: var(--outer);
+    /* matches #wrap's own top gradient color, not a neutral dark shade - on phones taller/
+       narrower than our fixed 390x844 canvas, the uniform-scale fit (see fitToViewport) can
+       leave a sliver of body visible past #wrap's bottom or sides, and a plain dark background
+       there used to look like a broken black bar instead of a seamless edge. */
+    background: var(--cream1);
     display: flex; align-items: flex-start; justify-content: center;
     font-family: 'Nunito', system-ui, sans-serif;
     overflow: hidden; user-select: none; touch-action: none;
@@ -293,7 +302,7 @@
     /* reserve clearance for #bottomNav, which grows taller on devices with a tall bottom
        safe-area inset (gesture bar) by the same env() amount - without this, battleModeBtn
        below (pushed to the bottom via margin-top:auto) would collide with the rising nav. */
-    padding-bottom: calc(100px + env(safe-area-inset-bottom));
+    padding-bottom: calc(76px + var(--safe-b));
   }
   #menuScreen .logo {
     font-size: 54px; margin-bottom: 4px; filter: drop-shadow(0 6px 16px rgba(255,140,100,0.4));
@@ -452,7 +461,7 @@
   #powerPanel {
     /* 2x2 grid tucked in the bottom-right corner: clear of the board above the kill line,
        and clear of the boba mascot (centered, bottom edge) which it sits beside, not over. */
-    position: absolute; right: calc(8px + env(safe-area-inset-right)); bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 4;
+    position: absolute; right: calc(8px + env(safe-area-inset-right)); bottom: calc(18px + var(--safe-b)); z-index: 4;
     display: none; grid-template-columns: repeat(2, 1fr); gap: 6px;
     background: rgba(20,14,40,0.4); backdrop-filter: blur(6px);
     padding: 6px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.15);
@@ -516,7 +525,7 @@
   .splashTip { font-size: 14px; font-weight: 800; color: #7A5A45; margin-top: 10px; }
 
   /* -- onboarding -- */
-  #onboardingScreen { position: absolute; inset: 0; flex-direction: column; padding: calc(54px + env(safe-area-inset-top)) calc(28px + env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) calc(28px + env(safe-area-inset-left)); z-index: 50; }
+  #onboardingScreen { position: absolute; inset: 0; flex-direction: column; padding: calc(54px + env(safe-area-inset-top)) calc(28px + env(safe-area-inset-right)) calc(40px + var(--safe-b)) calc(28px + env(safe-area-inset-left)); z-index: 50; }
   .skipBtn { align-self: flex-end; border: none; background: rgba(59,36,24,.08); color: var(--ink); font-weight: 800; font-size: 14px; padding: 10px 16px; border-radius: 99px; cursor: pointer; }
   .onbArt { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 110px; }
   .onbDots { display: flex; gap: 8px; justify-content: center; margin-bottom: 18px; }
@@ -540,7 +549,7 @@
     /* tracks battleModeBtn's bottom-anchored position (see #menuScreen padding-bottom /
        .battleModeBtn margin-top:auto above) so it stays aligned next to that row instead of
        colliding with #bottomNav on devices with a tall bottom safe-area inset. */
-    bottom: calc(145px + env(safe-area-inset-bottom));
+    bottom: calc(145px + var(--safe-b));
     border: none; border-radius: 99px; padding: 8px 14px;
     background: rgba(122,74,46,.12); color: var(--muted-ink);
     font-family: 'Fredoka'; font-weight: 600; font-size: 12px; cursor: pointer;
@@ -565,19 +574,19 @@
 
   /* -- bottom nav -- */
   #bottomNav {
-    position: absolute; left: 0; right: 0; bottom: 0; height: calc(90px + env(safe-area-inset-bottom)); z-index: 8;
-    padding: 0 calc(26px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(26px + env(safe-area-inset-left)); border-radius: 28px 28px 0 0;
+    position: absolute; left: 0; right: 0; bottom: 0; height: calc(64px + var(--safe-b)); z-index: 8;
+    padding: 0 calc(26px + env(safe-area-inset-right)) calc(10px + var(--safe-b)) calc(26px + env(safe-area-inset-left)); border-radius: 24px 24px 0 0;
     background: var(--card); box-shadow: 0 -4px 20px rgba(122,74,46,.15);
     align-items: center; justify-content: space-between;
   }
-  .navItem { width: 72px; flex: none; border: none; background: none; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--soft-ink); cursor: pointer; font-size: 12px; font-weight: 800; }
+  .navItem { width: 64px; flex: none; border: none; background: none; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--soft-ink); cursor: pointer; font-size: 11px; font-weight: 800; }
   .navItem.active { color: var(--brown); }
-  .navIcon { width: 28px; height: 28px; flex: none; display: flex; align-items: center; justify-content: center; opacity: .65; }
+  .navIcon { width: 23px; height: 23px; flex: none; display: flex; align-items: center; justify-content: center; opacity: .65; }
   .navItem.active .navIcon { opacity: 1; }
   .navIcon img { width: 100%; height: 100%; object-fit: contain; }
-  .navHomeBtn { width: 70px; height: 70px; flex: none; box-sizing: border-box; margin-top: -30px; border: 6px solid var(--card); border-radius: 50%; background: var(--brown); box-shadow: 0 5px 0 var(--brown-sh); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.08s, box-shadow 0.08s; }
+  .navHomeBtn { width: 56px; height: 56px; flex: none; box-sizing: border-box; margin-top: -22px; border: 5px solid var(--card); border-radius: 50%; background: var(--brown); box-shadow: 0 4px 0 var(--brown-sh); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.08s, box-shadow 0.08s; }
   .navHomeBtn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--brown-sh); }
-  .navHomeDot { width: 54px; height: 54px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .navHomeDot { width: 42px; height: 42px; flex: none; display: flex; align-items: center; justify-content: center; }
   .navHomeDot img { width: 100%; height: 100%; object-fit: contain; }
 
   /* -- pause button (in-game) -- */
@@ -594,7 +603,7 @@
      (static, in-flow) canvas in paint order without needing to touch the canvas's own CSS. */
   #bobaMascot {
     display: none; position: absolute; z-index: -1;
-    left: 50%; bottom: calc(-12px + env(safe-area-inset-bottom)); width: 220px; height: 137px;
+    left: 50%; bottom: calc(-12px + var(--safe-b)); width: 220px; height: 137px;
     transform: translateX(-50%);
     background-image: url('boba-sprites.webp');
     background-size: 600% 600%;
@@ -603,7 +612,7 @@
   }
 
   /* -- bottom sheet overlays (pause / toppings / daily) -- */
-  .sheetOverlay { position: absolute; inset: 0; z-index: 30; background: rgba(59,36,24,.55); align-items: flex-end; justify-content: center; padding: calc(16px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left)); }
+  .sheetOverlay { position: absolute; inset: 0; z-index: 30; background: rgba(59,36,24,.55); align-items: flex-end; justify-content: center; padding: calc(16px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(24px + var(--safe-b)) calc(12px + env(safe-area-inset-left)); }
   .sheetOverlay.center { align-items: center; }
   .sheetCard { position: relative; width: 100%; border-radius: 30px; background: var(--card); color: var(--ink); padding: 22px 20px; box-shadow: 0 10px 0 rgba(59,36,24,.3); display: flex; flex-direction: column; gap: 12px; }
   .sheetTitle { text-align: center; font-size: 36px; color: var(--brown); }
@@ -617,6 +626,20 @@
     font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 700; color: var(--ink); background: var(--cream);
   }
   .lbList { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+
+  /* -- how to play -- */
+  #howToOverlay .sheetTitle { font-size: 24px; margin-bottom: 2px; }
+  .howToList { max-height: 60vh; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: 10px; padding-right: 2px; }
+  .howToSectionTitle {
+    font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 12px; letter-spacing: .4px;
+    text-transform: uppercase; color: var(--soft-ink); margin: 4px 0 -2px;
+  }
+  .howToRow { display: flex; align-items: center; gap: 12px; background: var(--cream); border-radius: 16px; padding: 10px 12px; }
+  .howToIcon { width: 36px; height: 36px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .howToIcon img { width: 100%; height: 100%; object-fit: contain; }
+  .howToText { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .howToName { font-weight: 800; font-size: 14px; color: var(--ink); }
+  .howToDesc { font-size: 12px; color: var(--muted-ink); line-height: 1.3; }
   .lbRow { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 14px; background: var(--hairline); font-weight: 800; }
   .lbRow.me { background: var(--matcha-light, #E2F0D6); }
   .lbRank { width: 22px; flex: none; color: var(--muted-ink); font-size: 13px; }
@@ -728,6 +751,7 @@
     </div>
     <div class="homeSideCol homeSideRight">
       <button id="settingsBtn" class="roundChip" title="Settings"><span class="chipIcon"><img src="icons/icon-settings.png" alt=""></span><span class="chipLabel">Settings</span></button>
+      <button id="howToBtn" class="roundChip" title="How to Play"><span class="chipIcon" style="font-size:24px;">❓</span><span class="chipLabel">How To</span></button>
     </div>
     <img class="homeLogo" src="logo-portrait.webp" alt="Pop-A-Boba">
     <p class="subtitle">pop, chain &amp; sip your way to the top</p>
@@ -882,6 +906,14 @@
       <button class="btn primary-cta full" id="dailyClaimBtn">Claim</button>
     </div>
   </div>
+
+  <div id="howToOverlay" class="sheetOverlay center" style="display:none;">
+    <div class="sheetCard">
+      <button id="howToCloseBtn" class="sheetCloseBtn">×</button>
+      <div class="chewy sheetTitle">How to Play</div>
+      <div id="howToList" class="howToList"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -902,7 +934,13 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const W = 390, H = 844;
-canvas.width = W; canvas.height = H;
+// render at the device's real pixel density (capped - no point buffering past ~2.5x, and it
+// costs fill-rate on cheaper phones) instead of a flat 390x844 backing buffer stretched up by
+// the #wrap scale transform, which is what made every sprite/bubble look soft on hi-res phones.
+const DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+canvas.width = W * DPR; canvas.height = H * DPR;
+canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+ctx.scale(DPR, DPR);
 
 // these are `let`, not `const`: Battle mode's withBoard() temporarily swaps them to a mini
 // board's own geometry (fewer cols, smaller radius) so the shared engine functions below
@@ -2375,7 +2413,7 @@ function buildShopCards() {
     <div class="shopCard">
       <div class="icon"><img src="${def.img}" alt=""></div>
       <div class="info"><div class="title">${def.name}</div><div class="sub">+1 to your inventory</div></div>
-      <button class="buy buySingle" style="background:var(--yellow);color:var(--ink);box-shadow:0 4px 0 var(--yellow-sh);" data-key="${def.key}">${SINGLE_POWER_COST} <img src="icons/icon-pearl.png" alt="" style="width:16px;height:16px;vertical-align:-3px;"></button>
+      <button class="buy buySingle" style="background:var(--yellow);color:var(--ink);box-shadow:0 4px 0 var(--yellow-sh);" data-key="${def.key}">${SINGLE_POWER_COST} <img src="icons/icon-pearl.png" alt="" style="width:20px;height:16px;object-fit:contain;vertical-align:-3px;"></button>
     </div>`).join('')}
 
     <div class="shopSectionLabel">Coins Top Up</div>
@@ -2409,6 +2447,7 @@ function buildShopCards() {
 }
 function toggleSfxMuted() { sfxMuted = !sfxMuted; saveSettings(); renderSettingsToggles(); }
 function toggleMusicMuted() { toggleBgmMute(); }
+function toggleVibration() { vibEnabled = !vibEnabled; saveSettings(); renderSettingsToggles(); buzz(10); }
 function renderSettingsToggles() {
   const panel = document.getElementById('settingsGroups');
   if (!panel) return;
@@ -2435,6 +2474,7 @@ function renderSettingsToggles() {
     <div class="settingsGroup">
       ${row('music', 'Music', 'Background music', !bgmMuted, toggleMusicMuted)}
       ${row('sfx', 'Sound Effects', 'Pops, booms &amp; jingles', !sfxMuted, toggleSfxMuted)}
+      ${row('vib', 'Vibration', 'Buzz on big hits &amp; chains', vibEnabled, toggleVibration)}
     </div>
     <div class="settingsGroupLabel">ACCOUNT &amp; HELP</div>
     <div class="settingsGroup">
@@ -2444,6 +2484,7 @@ function renderSettingsToggles() {
     <div class="settingsVersion">Pop-A-Boba v1.0.0</div>`;
   panel.querySelector('[data-key="music"]').addEventListener('click', toggleMusicMuted);
   panel.querySelector('[data-key="sfx"]').addEventListener('click', toggleSfxMuted);
+  panel.querySelector('[data-key="vib"]').addEventListener('click', toggleVibration);
   document.getElementById('editNicknameLink').addEventListener('click', () => promptNickname(renderSettingsToggles, true));
   const linkBtn = document.getElementById('linkGoogleLink');
   if (linkBtn) linkBtn.addEventListener('click', linkGoogleAccount);
@@ -2839,6 +2880,8 @@ function loop(ts) {
   lastFrameTime = t;
   timeNow = t;
 
+  fitToViewport();
+
   if (!isGameplay() && t - lastEcoRefresh > 1) {
     lastEcoRefresh = t; regenLives(); renderEcoPills();
   }
@@ -2884,7 +2927,15 @@ function pointerAngleFrom(clientX, clientY) {
 }
 
 canvas.addEventListener('mousemove', (e) => { aimAngle = pointerAngleFrom(e.clientX, e.clientY); });
+// touchend's preventDefault() is supposed to suppress the synthetic 'click' that follows a
+// tap, but that suppression isn't reliable on every WebView - when it fires anyway, replaying
+// tryCatchPickupAt() finds the pickup already marked caught (handled once by touchend) and
+// falls through to shoot(), so a tap that correctly caught a pickup still fires the shooter
+// right after. Track the last touch-handled tap and ignore any click that follows it closely,
+// rather than trusting preventDefault to have worked.
+let lastTouchHandledAt = 0;
 canvas.addEventListener('click', (e) => {
+  if (Date.now() - lastTouchHandledAt < 600) return;
   const [x, y] = canvasXY(e.clientX, e.clientY);
   if (tryCatchPickupAt(x, y)) return;
   aimAngle = pointerAngleFrom(e.clientX, e.clientY);
@@ -2893,6 +2944,7 @@ canvas.addEventListener('click', (e) => {
 canvas.addEventListener('touchmove', (e) => { e.preventDefault(); const t = e.touches[0]; aimAngle = pointerAngleFrom(t.clientX, t.clientY); }, { passive: false });
 canvas.addEventListener('touchend', (e) => {
   e.preventDefault();
+  lastTouchHandledAt = Date.now();
   const t = e.changedTouches[0];
   if (t) {
     const [x, y] = canvasXY(t.clientX, t.clientY);
@@ -3279,6 +3331,46 @@ function showDailyOverlay() {
 function hideDailyOverlay() {
   document.getElementById('dailyOverlay').style.display = 'none';
 }
+
+const HOWTO_POWER_DESCS = {
+  [GUIDE]: 'Shows exactly where your next 3 shots will land.',
+  [COLORBOMB]: 'Clears every bubble of one flavor, anywhere on the board.',
+  [RAINBOW]: 'Matches whichever flavor(s) it touches - plant it next to any 2 of a kind to finish the group.',
+  [SWAP]: 'Swaps your current pearl with the next one up.'
+};
+const HOWTO_SPECIALS = [
+  { icon: '⚡', name: 'Chain Boba', blurb: "Pops in a small chain reaction when cleared - don't stand too close!" },
+  { icon: '⭐', name: 'Golden Pearl', blurb: 'A lucky pearl - pop it for bonus pearls.' },
+  { icon: '🧊', name: 'Ice Cube', blurb: 'Frozen solid - pop bubbles next to it to melt it free.' }
+];
+const HOWTO_PEARLS = [
+  { color: '#C17F3E', name: 'Pearl Boba', blurb: 'The chill one. Never rattled, always steady.' },
+  { color: '#FF6FA5', name: 'Crystal Boba', blurb: 'Sweet and a little dramatic - blushes after every big combo.' },
+  { color: '#7CB342', name: 'Grass Boba', blurb: 'Playful and quick to laugh, first to try a new combo.' },
+  { color: '#FFB648', name: 'Orange Boba', blurb: 'The anxious one - holds his breath near the danger line.' },
+  { color: '#B28CFF', name: 'Purple Boba', blurb: 'Royalty vibes. Dreamy, a bit extra, always sparkling.' }
+];
+function howToRow(iconHtml, name, blurb) {
+  return `<div class="howToRow"><span class="howToIcon">${iconHtml}</span>
+    <span class="howToText"><span class="howToName">${name}</span><span class="howToDesc">${blurb}</span></span></div>`;
+}
+function renderHowTo() {
+  const list = document.getElementById('howToList');
+  list.innerHTML =
+    '<div class="howToSectionTitle">Power-Ups</div>' +
+    POWER_DEFS.map(d => howToRow(`<img src="${d.img}" alt="">`, d.name, HOWTO_POWER_DESCS[d.key] || '')).join('') +
+    '<div class="howToSectionTitle">Specials You\'ll See</div>' +
+    HOWTO_SPECIALS.map(s => howToRow(s.icon, s.name, s.blurb)).join('') +
+    '<div class="howToSectionTitle">Meet the Pearls</div>' +
+    HOWTO_PEARLS.map(p => howToRow(`<span style="display:block;width:100%;height:100%;border-radius:50%;background:${p.color};"></span>`, p.name, p.blurb)).join('');
+}
+function openHowTo() {
+  renderHowTo();
+  document.getElementById('howToOverlay').style.display = 'flex';
+}
+function closeHowTo() {
+  document.getElementById('howToOverlay').style.display = 'none';
+}
 function renderDailyGrid() {
   const { day, claimedToday } = loadDailyStreak();
   const grid = document.getElementById('dailyGrid');
@@ -3627,6 +3719,8 @@ document.getElementById('pauseVibBtn').addEventListener('click', () => { vibEnab
 document.getElementById('toppingsCloseBtn').addEventListener('click', closeToppings);
 document.getElementById('toppingsStartBtn').addEventListener('click', confirmToppingsStart);
 document.getElementById('dailyCloseBtn').addEventListener('click', hideDailyOverlay);
+document.getElementById('howToBtn').addEventListener('click', openHowTo);
+document.getElementById('howToCloseBtn').addEventListener('click', closeHowTo);
 document.getElementById('dailyClaimBtn').addEventListener('click', claimDailyFromGrid);
 document.getElementById('onbSkipBtn').addEventListener('click', finishOnboarding);
 document.getElementById('onbNextBtn').addEventListener('click', advanceOnboarding);
@@ -3634,14 +3728,23 @@ document.getElementById('seeIntroBtn').addEventListener('click', () => showIntro
 
 // --- mobile-responsive scaling: fixed 480x720 virtual resolution, scaled to fit any screen ---
 const wrapEl = document.getElementById('wrap');
+let lastFitScale = 0;
 function fitToViewport() {
   const vw = window.innerWidth, vh = window.innerHeight;
   const scale = Math.min(vw / W, vh / H, 1.4);
+  // some Android WebViews (seen on certain Huawei/Honor builds) report a stale innerWidth/
+  // innerHeight right after the activity is forced into portrait on launch, and never fire a
+  // real 'resize'/visualViewport 'resize' afterward once it settles - so on top of the normal
+  // listeners below, this also gets re-checked every frame from loop() as a cheap safety net
+  // (skip the DOM write entirely when nothing changed, so idle frames don't thrash layout).
+  if (Math.abs(scale - lastFitScale) < 0.001) return;
+  lastFitScale = scale;
   wrapEl.style.transform = `scale(${scale})`;
 }
 window.addEventListener('resize', fitToViewport);
 window.addEventListener('orientationchange', fitToViewport);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', fitToViewport);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) fitToViewport(); });
 fitToViewport();
 
 loadEconomy();

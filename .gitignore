@@ -4,3 +4,8 @@ android/.gradle/
 android/build/
 android/app/build/
 android/capacitor-cordova-android-plugins/build/
+
+# release signing: never commit the upload key or its passwords
+android/app/*.jks
+android/app/*.keystore
+android/app/keystore.properties

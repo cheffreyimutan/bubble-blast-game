@@ -731,7 +731,9 @@
   .goalLabel { font-size: 11px; font-weight: 800; color: var(--muted-ink); letter-spacing: .5px; }
   .goalVal { font-weight: 800; font-size: 15px; }
   .toppingsSectionLabel { font-size: 12px; font-weight: 800; letter-spacing: 1px; color: var(--muted-ink); margin-top: 4px; }
-  .toppingsGrid { display: flex; gap: 10px; }
+  /* grid, not flex - a 5th card (Double Power-Ups, alongside the 4 TOPPING_KEYS) made a single
+     flex row squeeze every card uncomfortably narrow; 3-per-row wraps cleanly at any count */
+  .toppingsGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .toppingCard { flex: 1; position: relative; border: 3px solid var(--hairline); border-radius: 22px; padding: 14px 6px 10px; background: var(--hairline); display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; color: var(--ink); }
   .toppingCard.on { border-color: var(--matcha-sh); background: #EAF6E1; }
   .toppingCard.disabled { opacity: .4; cursor: default; }
@@ -750,9 +752,11 @@
   .dailyCard.future { opacity: .55; }
   .dailyCard.big { grid-column: span 2; }
   .dailyDayLabel { font-size: 11px; font-weight: 800; color: var(--muted-ink); }
-  .dailyIcon { width: 26px; height: 26px; border-radius: 50%; }
-  .dailyIcon.coin { background: var(--mango); box-shadow: inset 0 0 0 4px var(--mango-sh); }
-  .dailyIcon.gem { background: radial-gradient(circle at 34% 28%, var(--mango-light) 0 12%, var(--pearl) 22%, var(--brown) 55%, var(--brown-sh) 100%); }
+  /* every day's reward is primarily pearls (a couple of days also tack on a few bonus coins,
+     shown as text alongside, not as this icon) - this used to show a plain coin-colored or
+     gem-colored circle depending on the day, never actually the pearl the reward really is */
+  .dailyIcon { width: 26px; height: 26px; }
+  .dailyIcon img { width: 100%; height: 100%; object-fit: contain; }
   .dailyAmt { font-family: 'Fredoka'; font-weight: 700; font-size: 14px; }
   .dailyCheck { position: absolute; inset: 0; border-radius: 15px; background: rgba(143,203,107,.9); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; color: var(--matcha-ink); }
 </style>
@@ -2623,10 +2627,14 @@ function showComingSoon(label) {
   showOverlay(label, 'Coming soon!', 'Close', showMenu);
 }
 
-const BOOSTER_BUNDLE_COST = 40;
+// priced in pearls, not coins - coins have no real organic faucet (see SINGLE_POWER_COST's own
+// note below), so a coin-priced bundle was effectively unbuyable through normal play. Priced as
+// buying one of each power-up individually (POWER_DEFS.length * 40, matching SINGLE_POWER_COST)
+// minus a flat 10-pearl bundle discount.
+const BOOSTER_BUNDLE_COST = POWER_DEFS.length * 40 - 10;
 function buyBoosterBundle() {
-  if (!spendCoins(BOOSTER_BUNDLE_COST)) {
-    showOverlay('Not enough coins', `You need ${BOOSTER_BUNDLE_COST} coins for this bundle.`, 'OK', showShop);
+  if (!spendPearls(BOOSTER_BUNDLE_COST)) {
+    showOverlay('Not enough pearls', `You need ${BOOSTER_BUNDLE_COST} 🧋 for this bundle.`, 'OK', showShop);
     return;
   }
   for (const def of POWER_DEFS) powerInventory[def.key] = (powerInventory[def.key] || 0) + 1;
@@ -2724,11 +2732,11 @@ function buildShopCards() {
       <button class="buy" id="watchAdHeartBtn" style="background:var(--mint);color:var(--mint-ink);box-shadow:0 4px 0 var(--mint-sh);" ${(!adReady || livesFull) ? 'disabled' : ''}>📺 Free</button>
     </div>
 
-    <div class="shopSectionLabel">Packs &amp; Bundles · paid in coins</div>
+    <div class="shopSectionLabel">Packs &amp; Bundles</div>
     <div class="shopCard">
       <div class="icon"><img src="icons/icon-boosterbundle.png" alt=""></div>
-      <div class="info"><div class="title">Booster Bundle</div><div class="sub">+1 of every power-up</div></div>
-      <button class="buy" style="background:var(--yellow);color:var(--ink);box-shadow:0 4px 0 var(--yellow-sh);" id="buyBundleBtn">${BOOSTER_BUNDLE_COST} 🪙</button>
+      <div class="info"><div class="title">Booster Bundle</div><div class="sub">+1 of every power-up - cheaper than buying each alone</div></div>
+      <button class="buy" style="background:var(--yellow);color:var(--ink);box-shadow:0 4px 0 var(--yellow-sh);" id="buyBundleBtn">${BOOSTER_BUNDLE_COST} <img src="icons/icon-pearl.png" alt="" style="width:20px;height:16px;object-fit:contain;vertical-align:-3px;"></button>
     </div>
     <div class="shopCard">
       <div class="icon"><img src="icons/icon-starterpack.png" alt=""></div>
@@ -3673,6 +3681,14 @@ function openToppings(level) {
 function renderToppingsGrid() {
   const grid = document.getElementById('toppingsGrid');
   grid.innerHTML = '';
+  // Double Power-Ups first - it's the one option every player can always pick regardless of
+  // inventory, so it's the most broadly useful choice and earns the most prominent slot
+  const doubleOn = toppingsSelected === DOUBLE_LOADOUT;
+  const doubleCard = document.createElement('button');
+  doubleCard.className = 'toppingCard' + (doubleOn ? ' on' : '');
+  doubleCard.innerHTML = `<div class="toppingIcon" style="font-family:'Fredoka',sans-serif;font-weight:700;font-size:20px;color:var(--brown);">2X</div><div class="toppingName">Double Power-Ups</div><div class="toppingCount">Every other use is free</div>` + (doubleOn ? '<div class="toppingCheck">✓</div>' : '');
+  doubleCard.addEventListener('click', () => { toppingsSelected = doubleOn ? null : DOUBLE_LOADOUT; renderToppingsGrid(); });
+  grid.appendChild(doubleCard);
   for (const key of TOPPING_KEYS) {
     const def = POWER_DEFS.find(d => d.key === key);
     const count = powerInventory[key] || 0;
@@ -3683,13 +3699,6 @@ function renderToppingsGrid() {
     if (count > 0) card.addEventListener('click', () => { toppingsSelected = (toppingsSelected === key) ? null : key; renderToppingsGrid(); });
     grid.appendChild(card);
   }
-  // not tied to inventory - always pickable, and doesn't consume anything itself
-  const doubleOn = toppingsSelected === DOUBLE_LOADOUT;
-  const doubleCard = document.createElement('button');
-  doubleCard.className = 'toppingCard' + (doubleOn ? ' on' : '');
-  doubleCard.innerHTML = `<div class="toppingIcon" style="font-family:'Fredoka',sans-serif;font-weight:700;font-size:20px;color:var(--brown);">2X</div><div class="toppingName">Double Power-Ups</div><div class="toppingCount">Every other use is free</div>` + (doubleOn ? '<div class="toppingCheck">✓</div>' : '');
-  doubleCard.addEventListener('click', () => { toppingsSelected = doubleOn ? null : DOUBLE_LOADOUT; renderToppingsGrid(); });
-  grid.appendChild(doubleCard);
   document.getElementById('toppingsStartBtn').textContent = toppingsSelected ? 'Start with topping' : 'Start Level';
 }
 function closeToppings() {
@@ -3786,7 +3795,7 @@ function renderDailyGrid() {
     const card = document.createElement('div');
     card.className = 'dailyCard ' + state + (i === 6 ? ' big' : '');
     card.innerHTML = `<span class="dailyDayLabel">Day ${i + 1}</span>` +
-      `<div class="dailyIcon ${r.coins ? 'gem' : 'coin'}"></div>` +
+      `<div class="dailyIcon"><img src="icons/icon-pearl.png" alt=""></div>` +
       `<span class="dailyAmt">${r.pearls}${r.coins ? ' +' + r.coins + '🪙' : ''}</span>` +
       (state === 'done' ? '<div class="dailyCheck">✓</div>' : '');
     grid.appendChild(card);

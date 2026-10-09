@@ -1359,6 +1359,7 @@ function openDailyGift() {
 // AdMob account of our own. Swap for real ad unit IDs from an AdMob console before this needs
 // to earn real revenue - shipping these to production just means the "ad" never monetizes.
 const ADMOB_REWARDED_TEST_ID = 'ca-app-pub-3940256099942544/5224354917';
+const ADMOB_INTERSTITIAL_TEST_ID = 'ca-app-pub-3940256099942544/1033173712';
 function admobAvailable() {
   try { return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob); }
   catch (e) { return false; }
@@ -1366,6 +1367,22 @@ function admobAvailable() {
 async function initAdsIfAvailable() {
   if (!admobAvailable()) return;
   try { await window.Capacitor.Plugins.AdMob.initialize({ initializeForTesting: true }); } catch (e) {}
+}
+// Remove Ads entitlement - real Play Billing purchase isn't wired up yet (see the shop's
+// buyStub for Remove Ads), so this only ever becomes true once that's actually built; for now
+// it just gives the gating logic below a single, honest place to live so wiring in a real
+// purchase later is a one-line change, not a hunt through every ad call site.
+let removeAdsPurchased = false;
+try { removeAdsPurchased = localStorage.getItem('bubbleBlastRemoveAds') === '1'; } catch (e) {}
+async function showInterstitialAfterGame() {
+  if (removeAdsPurchased || !admobAvailable()) return;
+  try {
+    const AdMobPlugin = window.Capacitor.Plugins.AdMob;
+    await AdMobPlugin.prepareInterstitial({ adId: ADMOB_INTERSTITIAL_TEST_ID, isTesting: true });
+    await AdMobPlugin.showInterstitial();
+  } catch (e) {
+    // no fill / native hiccup - never block the result screen over an ad that didn't show
+  }
 }
 function showFakeRewardedAd(onComplete) {
   const el = document.getElementById('adOverlay');
@@ -2448,6 +2465,7 @@ function checkKillLine() {
 
 function winLevel() {
   gameOver = true;
+  showInterstitialAfterGame();
   playWinJingle();
   setBobaMood('cool');
   const frac = levelConfig.timeLimit > 0 ? levelTimeLeft / levelConfig.timeLimit : 0;
@@ -2508,6 +2526,7 @@ function giveUpLevel() {
   spendLife();
   renderEcoPills();
   document.getElementById('overlay').style.display = 'none';
+  showInterstitialAfterGame();
   showMap();
 }
 function failLevel(reason) {
@@ -3969,6 +3988,7 @@ function endlessFinalScore() {
 
 function failEndless() {
   gameOver = true;
+  showInterstitialAfterGame();
   sfxFail();
   setBobaMood('crying');
   const finalScore = endlessFinalScore();

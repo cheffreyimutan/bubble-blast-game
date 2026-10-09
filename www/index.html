@@ -1427,9 +1427,16 @@ function getLevelConfig(level) {
   return {
     level,
     tier,
-    rows: Math.min(5 + Math.floor(level / 10), 10),
-    timeLimit: Math.max(32, 100 - level * 0.7),
+    // bumped from 5->10 to 6->12 and from a 32s floor/100s start to a 40s floor/112s start -
+    // a full-width pattern at the old row counts, especially once a chunk of it gets carved
+    // away by a shaped pattern (see `pattern` below), was clearing out too fast to feel like a
+    // real level
+    rows: Math.min(6 + Math.floor(level / 9), 12),
+    timeLimit: Math.max(40, 112 - level * 0.7),
     colorCount: Math.min(3 + Math.floor(level / 8), COLORS.length),
+    // Worms-Blast-style pre-arranged shape instead of a flat filled rectangle every time - the
+    // first world stays 'full' so new players learn the basics without also puzzling over gaps
+    pattern: level <= 10 ? 'full' : patternForLevel(level),
     stoneChance: Math.min(0.3, tier * 0.035),
     // Ice Cubes start showing up from world 4 onward (tier 3), once stone and colors are both
     // already in the mix, as a second kind of obstacle rather than just "more of the same"
@@ -1760,11 +1767,36 @@ function dropNewLine() {
   checkKillLine();
 }
 
+// --- Arcade level patterns: pre-arranged starting shapes (Worms Blast-style) instead of a
+// flat filled rectangle every time. Each is a predicate over the cell's NORMALIZED (0-1)
+// position within the level's own row/col bounds, so one function works at any rows/colorCount
+// combo - `true` means "fill this cell", `false` leaves it empty from the start.
+const LEVEL_PATTERNS = {
+  full: () => true,
+  diamond: (x, y) => Math.abs(x - 0.5) + Math.abs(y - 0.5) < 0.52,
+  pyramid: (x, y) => Math.abs(x - 0.5) < (1 - y) * 0.56 + 0.08,
+  hourglass: (x, y) => Math.abs(x - 0.5) < Math.abs(y - 0.5) * 0.85 + 0.12,
+  rings: (x, y) => { const d = Math.hypot(x - 0.5, y - 0.5); return d < 0.54 && (d > 0.33 || d < 0.16); },
+  // scattered single-cell holes rather than solid diagonal bands - bands that don't happen to
+  // touch row 0 would get entirely removed by pruneDisconnectedCells() below, leaving a much
+  // sparser board than intended; isolated holes in an otherwise-full grid can't disconnect it
+  polka: (x, y) => ((Math.round(x * 20) * 3 + Math.round(y * 20) * 5) % 7) !== 0,
+};
+// every pattern key except 'full' (that one's only used for world 1, selected explicitly above)
+const SHAPED_PATTERN_KEYS = Object.keys(LEVEL_PATTERNS).filter(k => k !== 'full');
+function patternForLevel(level) {
+  return SHAPED_PATTERN_KEYS[(level - 11) % SHAPED_PATTERN_KEYS.length];
+}
 function initLevel(config) {
   grid = makeEmptyGrid();
   const pool = COLORS.slice(0, config.colorCount);
+  const patternFn = LEVEL_PATTERNS[config.pattern] || LEVEL_PATTERNS.full;
   for (let r = 0; r < config.rows; r++) {
-    for (let c = 0; c < colsInRow(r); c++) {
+    const rowCols = colsInRow(r);
+    for (let c = 0; c < rowCols; c++) {
+      const nx = rowCols > 1 ? c / (rowCols - 1) : 0.5;
+      const ny = config.rows > 1 ? r / (config.rows - 1) : 0.5;
+      if (!patternFn(nx, ny)) continue; // part of the pattern's own gap - leave this cell empty
       if (config.stoneChance > 0 && Math.random() < config.stoneChance) {
         grid[r][c] = makeBubble(STONE);
       } else {
@@ -1772,10 +1804,31 @@ function initLevel(config) {
       }
     }
   }
+  // safety net, not a shape-fidelity concern: a pattern that left some filled region not
+  // actually reachable back to row 0 would get instantly cleared by dropFloatingClusters() as
+  // "unsupported debris" the moment the player pops anything, before they even see the shape
+  pruneDisconnectedCells();
   const sinkerChance = config.sinkerChance || 0;
   const allRows = Array.from({ length: config.rows }, (_, i) => i);
   for (let r = 0; r < config.rows; r++) {
     if (Math.random() < sinkerChance) placeSinkerCluster(allRows);
+  }
+}
+function pruneDisconnectedCells() {
+  const connected = new Set(), stack = [];
+  for (let c = 0; c < colsInRow(0); c++) if (grid[0][c]) { stack.push([0, c]); connected.add(`0,${c}`); }
+  while (stack.length) {
+    const [r, c] = stack.pop();
+    for (const [nr, nc] of neighbors(r, c)) {
+      const key = `${nr},${nc}`;
+      if (connected.has(key)) continue;
+      if (grid[nr] && grid[nr][nc]) { connected.add(key); stack.push([nr, nc]); }
+    }
+  }
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < colsInRow(r); c++) {
+      if (grid[r][c] && !connected.has(`${r},${c}`)) grid[r][c] = null;
+    }
   }
 }
 

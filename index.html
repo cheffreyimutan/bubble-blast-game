@@ -1060,15 +1060,21 @@ const BOMB = 'bomb', AIRSTRIKE = 'airstrike', TIMED = 'timed', RAINBOW = 'rainbo
 const GUIDE = 'guide', COLORBOMB = 'colorbomb', SWAP = 'swap';
 const SPECIALS = [BOMB, AIRSTRIKE, TIMED, RAINBOW];
 const NONCOLOR = [...SPECIALS, STONE];
+// Rainbow Pearl retired as a player power-up (players consistently picked Bomb/Straw Guide
+// instead - its "adapt to whichever color you touch" effect read as the least useful of the
+// four in practice) in favor of Bomb and Airstrike, both of which already had a complete,
+// working engine (explosionAt/columnClear) sitting unused - built at some earlier point and
+// never actually wired into the shooter's own color pool or POWER_DEFS.
 const POWER_DEFS = [
   { key: GUIDE, icon: '🥤', img: 'icons/icon-strawguide.png', name: 'Straw Guide' },
   { key: COLORBOMB, icon: '🍹', img: 'icons/icon-flavorbomb.png', name: 'Flavor Bomb' },
-  { key: RAINBOW, icon: '🌈', img: 'icons/icon-rainbowpearl.png', name: 'Rainbow Pearl' },
+  { key: BOMB, icon: '💣', img: 'icons/icon-bomb.svg', name: 'Boba Bomb' },
+  { key: AIRSTRIKE, icon: '🧋', img: 'icons/icon-airstrike.svg', name: 'Airstrike' },
   { key: SWAP, icon: '🔄', img: 'icons/icon-pearlswap.png', name: 'Pearl Swap' }
 ];
 for (const def of POWER_DEFS) { def.imgEl = new Image(); def.imgEl.src = def.img; }
 let armedPower = null;
-let powerInventory = { [GUIDE]: 0, [COLORBOMB]: 0, [RAINBOW]: 0, [SWAP]: 0 };
+let powerInventory = { [GUIDE]: 0, [COLORBOMB]: 0, [BOMB]: 0, [AIRSTRIKE]: 0, [SWAP]: 0 };
 let powerPickups = [];
 let guideShotsLeft = 0;
 const BUBBLE_ALPHA = 0.8;
@@ -1302,7 +1308,10 @@ function saveSettings() {
 function loadPowerInventory() {
   try {
     const p = JSON.parse(localStorage.getItem('bubbleBlastPowers'));
-    powerInventory = Object.assign({ [GUIDE]: 0, [COLORBOMB]: 0, [RAINBOW]: 0, [SWAP]: 0 }, p || {});
+    powerInventory = Object.assign({ [GUIDE]: 0, [COLORBOMB]: 0, [BOMB]: 0, [AIRSTRIKE]: 0, [SWAP]: 0 }, p || {});
+    // Rainbow Pearl was retired in favor of Bomb/Airstrike - fold any old saved Rainbow count
+    // into Bomb rather than just discarding it, so a returning player doesn't lose value
+    if (p && p.rainbow) { powerInventory[BOMB] = (powerInventory[BOMB] || 0) + p.rainbow; }
   } catch (e) {}
 }
 function savePowerInventory() { try { localStorage.setItem('bubbleBlastPowers', JSON.stringify(powerInventory)); } catch (e) {} }
@@ -2135,7 +2144,7 @@ function popCluster(cells, label) {
     window.__comboT = setTimeout(() => { el.classList.remove('show'); }, 700);
   }
   if (Math.random() < 0.08) {
-    const types = [GUIDE, COLORBOMB, RAINBOW, SWAP];
+    const types = [GUIDE, COLORBOMB, BOMB, AIRSTRIKE, SWAP];
     const type = types[Math.floor(Math.random() * types.length)];
     const origin = cells[Math.floor(Math.random() * cells.length)];
     const ox = cellX(origin[0], origin[1]), oy = cellY(origin[0]);
@@ -2310,6 +2319,28 @@ function clearAllOfColor(color) {
 function resolveImpact(r, c, color, fuse, colorBombActive) {
   comboChain = 0;
   grid[r][c] = makeBubble(color, undefined, timeNow);
+  if (color === BOMB || color === AIRSTRIKE) {
+    // these don't match a color at all - they unconditionally clear an area/column on impact,
+    // so they skip the match-or-miss branch entirely rather than running findMatch() against a
+    // "color" that nothing else on the board actually has
+    if (color === BOMB) explosionAt(r, c, 2.2, 'BOMB!', 16, 18);
+    else columnClear(c, r);
+    shotStreak++;
+    awardStreakMilestone();
+    updateStreakBadge();
+    dropFloatingClusters();
+    if (gameOver) return;
+    if (appState === 'playing' && isBoardClear()) { winLevel(); return; }
+    if (appState === 'endless' && isBoardClear()) {
+      applyEndlessDifficulty();
+      dropNewLine(); if (!gameOver) dropNewLine(); if (!gameOver) dropNewLine();
+      endlessDropInterval = Math.max(ENDLESS_MIN_INTERVAL, endlessDropInterval - ENDLESS_INTERVAL_DECAY);
+      levelTimeLeft = endlessDropInterval;
+      if (gameOver) return;
+    }
+    checkKillLine();
+    return;
+  }
   let group;
   if (color === RAINBOW) {
     // adapts to whichever color(s) it's actually touching, rather than matching everything
@@ -2844,7 +2875,7 @@ function shoot() {
   // speed expressed as a rate instead of a step, so normal play feels unchanged.)
   const speed = 17 * 60;
   const colorBombActive = armedPower === COLORBOMB;
-  const fireColor = armedPower === RAINBOW ? RAINBOW : currentBubble.color;
+  const fireColor = specialFireColor(currentBubble.color);
   flying = {
     x: shooterX, y: shooterY,
     vx: Math.cos(aimAngle) * speed, vy: Math.sin(aimAngle) * speed,
@@ -2862,6 +2893,11 @@ function shoot() {
   shots++;
 }
 let aimAngle = -Math.PI / 2;
+// Bomb/Airstrike fire as their own special "color" (resolveImpact branches on it instead of
+// doing a normal color-match) - same trick Rainbow used when it was still a player power-up.
+function specialFireColor(fallbackColor) {
+  return (armedPower === BOMB || armedPower === AIRSTRIKE) ? armedPower : fallbackColor;
+}
 
 function updateFlying(dt) {
   if (!flying) return;
@@ -2960,7 +2996,7 @@ function draw() {
     ctx.save();
     ctx.globalAlpha = 0.45;
     ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = ghostStrokeColor(armedPower === RAINBOW ? RAINBOW : currentBubble.color);
+    ctx.strokeStyle = ghostStrokeColor(specialFireColor(currentBubble.color));
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(lx, ly, RADIUS - 2, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
@@ -3068,7 +3104,7 @@ function draw() {
     drawBubble(0, -RADIUS * 0.3, nextBubble.color, { scale: PEARL_IN_STRAW_SCALE, bob: false, seed: nextBubble.seed });
   }
   if (currentBubble) {
-    const previewColor = armedPower === RAINBOW ? RAINBOW : currentBubble.color;
+    const previewColor = specialFireColor(currentBubble.color);
     drawBubble(0, -RADIUS * 1.5, previewColor, { scale: PEARL_IN_STRAW_SCALE, bob: false, fuse: currentBubble.fuse, seed: currentBubble.seed });
   }
   ctx.restore();
@@ -3533,7 +3569,7 @@ function renderPauseToggles() {
 }
 
 // --- pre-level toppings ---
-const TOPPING_KEYS = [GUIDE, COLORBOMB, RAINBOW];
+const TOPPING_KEYS = [GUIDE, COLORBOMB, BOMB, AIRSTRIKE];
 let toppingsLevel = null, toppingsSelected = null;
 function openToppings(level) {
   toppingsLevel = level; toppingsSelected = null;
@@ -3598,13 +3634,15 @@ function hideDailyOverlay() {
 const HOWTO_POWER_DESCS = {
   [GUIDE]: 'Shows exactly where your next 3 shots will land.',
   [COLORBOMB]: 'Clears every bubble of one flavor, anywhere on the board.',
-  [RAINBOW]: 'Matches whichever flavor(s) it touches - plant it next to any 2 of a kind to finish the group.',
+  [BOMB]: 'Explodes on impact, clearing everything in a radius - no color-matching needed.',
+  [AIRSTRIKE]: 'Clears the entire column it lands in, top to bottom.',
   [SWAP]: 'Swaps your current pearl with the next one up.'
 };
 const HOWTO_SPECIALS = [
   { icon: '⚡', name: 'Chain Boba', blurb: "Pops in a small chain reaction when cleared - don't stand too close!" },
   { icon: '⭐', name: 'Golden Pearl', blurb: 'A lucky pearl - pop it for bonus pearls.' },
-  { icon: '🧊', name: 'Ice Cube', blurb: 'Frozen solid - pop bubbles next to it to melt it free.' }
+  { icon: '🧊', name: 'Ice Cube', blurb: 'Frozen solid - pop bubbles next to it to melt it free.' },
+  { icon: '⚓', name: 'Frozen Sinker', blurb: 'A clumped-up clump - hit it twice (from any angle) to drop it.' }
 ];
 const HOWTO_PEARLS = [
   { color: '#C17F3E', name: 'Pearl Boba', blurb: 'The chill one. Never rattled, always steady.' },

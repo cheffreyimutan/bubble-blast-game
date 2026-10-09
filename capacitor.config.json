@@ -1,11 +1,5 @@
 {
   "appId": "com.cheffrey.popabobba",
   "appName": "Pop-A-Boba",
-  "webDir": "www",
-  "plugins": {
-    "FirebaseAuthentication": {
-      "skipNativeAuth": false,
-      "providers": ["google.com"]
-    }
-  }
+  "webDir": "www"
 }

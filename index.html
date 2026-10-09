@@ -393,6 +393,7 @@
     font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer;
   }
   .shopCard .buy:active { transform: translateY(2px); }
+  .shopCard .buy:disabled { opacity: 0.45; cursor: default; pointer-events: none; }
   #settingsScreen { justify-content: flex-start; padding: calc(70px + env(safe-area-inset-top)) 16px 16px; }
   #settingsScreen h2 { margin: 0 0 12px; font-size: 24px; font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--brown); }
   #settingsScroll { position: relative; width: 100%; flex: 1; overflow-y: auto; scrollbar-width: thin; }
@@ -509,6 +510,17 @@
     display: none; grid-template-columns: repeat(2, 1fr); gap: 6px;
     background: rgba(20,14,40,0.4); backdrop-filter: blur(6px);
     padding: 6px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.15);
+  }
+  /* Double Power-Ups loadout (chosen pre-level) - every other activation of any power-up is
+     free instead of consuming inventory, so a small ribbon on the panel itself is the one
+     always-visible reminder that it's active this level, without needing a whole separate
+     HUD element competing for space. */
+  #powerPanel.double-active { border-color: #ffd84a; box-shadow: 0 0 14px 2px rgba(255,216,74,0.45); }
+  #powerPanel.double-active::before {
+    content: '2X'; position: absolute; top: -9px; left: -9px; z-index: 1;
+    background: #ffd84a; color: #3B2418; font-family: 'Fredoka', sans-serif; font-weight: 700;
+    font-size: 11px; line-height: 1; padding: 4px 6px; border-radius: 999px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
   }
   .powerBtn {
     position: relative; width: 40px; height: 40px; border-radius: 12px;
@@ -1777,6 +1789,7 @@ function newBubbles() {
 
 function renderPowerPanel() {
   const panel = document.getElementById('powerPanel');
+  panel.classList.toggle('double-active', doubleLoadoutActive);
   panel.innerHTML = '';
   for (const def of POWER_DEFS) {
     const count = powerInventory[def.key] || 0;
@@ -1798,11 +1811,27 @@ function powerActivationFX(label, color) {
   powerFxColor = color;
   powerFxUntil = timeNow + POWER_FX_DURATION;
 }
+// Double Power-Ups loadout (picked pre-level, see TOPPING_KEYS/DOUBLE_LOADOUT below): rather
+// than doubling each power-up's own effect (which means something different for every one of
+// the 5 types - more shots, a bigger radius, an extra swap - and would need bespoke handling
+// everywhere), every other activation of a given power-up this level is free instead of
+// consuming inventory. That uniformly makes the player's whole stock last 2x as long,
+// regardless of which power-ups they actually use.
+let doubleLoadoutActive = false;
+let doublePendingFreeUse = {};
+function consumePower(key) {
+  if (doubleLoadoutActive) {
+    if (!doublePendingFreeUse[key]) { doublePendingFreeUse[key] = true; savePowerInventory(); return; }
+    doublePendingFreeUse[key] = false;
+  }
+  powerInventory[key] = Math.max(0, (powerInventory[key] || 0) - 1);
+  savePowerInventory();
+}
 function activatePower(key) {
   if (!isGameplay() || gameOver) return;
   if ((powerInventory[key] || 0) <= 0) return;
   if (key === GUIDE) {
-    powerInventory[key]--; savePowerInventory();
+    consumePower(key);
     guideShotsLeft = 3;
     powerActivationFX('STRAW GUIDE!', '#ff8fb8');
     renderPowerPanel();
@@ -1810,7 +1839,7 @@ function activatePower(key) {
   }
   if (key === SWAP) {
     if (!nextBubble) return;
-    powerInventory[key]--; savePowerInventory();
+    consumePower(key);
     const tmp = currentBubble; currentBubble = nextBubble; nextBubble = tmp;
     powerActivationFX('SWAPPED!', '#9ad8ff');
     renderPowerPanel();
@@ -2107,6 +2136,7 @@ function popCluster(cells, label) {
     if (cell.goldenPearl) goldenPearlCount++;
     grid[r][c] = null;
   }
+  let clearedSinkerCount = 0;
   for (const [r, c] of cells) {
     for (const [nr, nc] of neighbors(r, c)) {
       const key = `${nr},${nc}`;
@@ -2126,6 +2156,7 @@ function popCluster(cells, label) {
           // after this whole pop resolves
           spawnRing(cellX(nr, nc), cellY(nr), '#7a8fa6');
           grid[nr][nc] = null;
+          clearedSinkerCount++;
         }
       }
       if (grid[nr] && grid[nr][nc]) grid[nr][nc].worriedUntil = timeNow + 0.55;
@@ -2134,6 +2165,10 @@ function popCluster(cells, label) {
   const mult = Math.min(comboChain, 6);
   const sMult = streakMultiplier();
   score += Math.round(cells.length * 14 * mult * sMult);
+  // cleared sinkers weren't part of `cells` (they drop via the neighbor-decrement above, not a
+  // color match), so without this they silently didn't add anything to the score at all -
+  // popping them is just as deliberate and satisfying as a normal match, so it should count too
+  if (clearedSinkerCount > 0) score += Math.round(clearedSinkerCount * 14 * mult * sMult);
   sfxPop(cells.length >= 5 || comboChain >= 2);
   if (label) popText(cellX(cells[0][0], cells[0][1]), cellY(cells[0][0]), label, '#ffd84a');
   if (comboChain >= 2) {
@@ -2627,6 +2662,40 @@ function buyStarterPack() {
 function buyStub(label) {
   showOverlay(label, 'Coming soon! This needs real payment processing, which isn\'t wired up yet.', 'Close', showShop);
 }
+// --- hearts: a direct pearl-priced top-up, plus one free ad-watch per real calendar day -
+// same cooldown pattern as the daily gift, but tracked under its own storage key so the two
+// don't interfere with each other.
+const HEART_BUY_COST = 60;
+const HEART_AD_COOLDOWN_MS = 20 * 60 * 60 * 1000;
+function canWatchAdForHeart() {
+  if (economy.lives >= MAX_LIVES) return false;
+  let last = 0;
+  try { last = parseInt(localStorage.getItem('bubbleBlastHeartAdLast') || '0', 10); } catch (e) {}
+  return Date.now() - last > HEART_AD_COOLDOWN_MS;
+}
+function buyHeart() {
+  if (economy.lives >= MAX_LIVES) return;
+  if (!spendPearls(HEART_BUY_COST)) {
+    showOverlay('Not enough pearls', `You need ${HEART_BUY_COST} 🧋 for a heart.`, 'OK', showShop);
+    return;
+  }
+  economy.lives = Math.min(MAX_LIVES, economy.lives + 1);
+  saveEconomy();
+  renderEcoPills();
+  buildShopCards();
+  showOverlay('+1 Heart!', 'Topped up and ready to play.', 'Nice', showShop);
+}
+function watchAdForHeart() {
+  if (!canWatchAdForHeart()) return;
+  showRewardedAd(() => {
+    economy.lives = Math.min(MAX_LIVES, economy.lives + 1);
+    try { localStorage.setItem('bubbleBlastHeartAdLast', String(Date.now())); } catch (e) {}
+    saveEconomy();
+    renderEcoPills();
+    buildShopCards();
+    showOverlay('+1 Heart!', 'Topped up and ready to play. Come back tomorrow for another free one.', 'Nice', showShop);
+  });
+}
 const PEARL_EXCHANGE_RATE = { coins: 50, pearls: 500 };
 function buyPearlExchange() {
   if (!spendCoins(PEARL_EXCHANGE_RATE.coins)) {
@@ -2640,7 +2709,21 @@ function buyPearlExchange() {
 const REMOVE_ADS_COST = 150;
 function buildShopCards() {
   const el = document.getElementById('shopCards');
+  const adReady = canWatchAdForHeart();
+  const livesFull = economy.lives >= MAX_LIVES;
   el.innerHTML = `
+    <div class="shopSectionLabel">Hearts</div>
+    <div class="shopCard">
+      <div class="icon"><img src="icons/icon-heart.png" alt=""></div>
+      <div class="info"><div class="title">+1 Heart</div><div class="sub">${livesFull ? 'Already full' : 'Top up instantly'}</div></div>
+      <button class="buy" id="buyHeartBtn" style="background:var(--yellow);color:var(--ink);box-shadow:0 4px 0 var(--yellow-sh);" ${livesFull ? 'disabled' : ''}>${HEART_BUY_COST} <img src="icons/icon-pearl.png" alt="" style="width:20px;height:16px;object-fit:contain;vertical-align:-3px;"></button>
+    </div>
+    <div class="shopCard">
+      <div class="icon"><img src="icons/icon-heart.png" alt=""></div>
+      <div class="info"><div class="title">Watch Ad for +1 Heart</div><div class="sub">${livesFull ? 'Already full' : adReady ? 'Free, once per day' : 'Come back tomorrow'}</div></div>
+      <button class="buy" id="watchAdHeartBtn" style="background:var(--mint);color:var(--mint-ink);box-shadow:0 4px 0 var(--mint-sh);" ${(!adReady || livesFull) ? 'disabled' : ''}>📺 Free</button>
+    </div>
+
     <div class="shopSectionLabel">Packs &amp; Bundles · paid in coins</div>
     <div class="shopCard">
       <div class="icon"><img src="icons/icon-boosterbundle.png" alt=""></div>
@@ -2681,6 +2764,8 @@ function buildShopCards() {
       <div class="info"><div class="title">Remove Ads</div><div class="sub">= ${REMOVE_ADS_COST} coins</div></div>
       <button class="buy" style="background:var(--mint);color:var(--mint-ink);box-shadow:0 4px 0 var(--mint-sh);" id="buyNoAdsBtn">${REMOVE_ADS_COST} 🪙</button>
     </div>`;
+  document.getElementById('buyHeartBtn').onclick = buyHeart;
+  document.getElementById('watchAdHeartBtn').onclick = watchAdForHeart;
   document.getElementById('buyBundleBtn').onclick = buyBoosterBundle;
   document.getElementById('buyCoinsBtn').onclick = () => buyStub('Top Up Coins');
   document.getElementById('buyExchangeBtn').onclick = buyPearlExchange;
@@ -2882,8 +2967,7 @@ function shoot() {
     color: fireColor, fuse: currentBubble.fuse, seed: currentBubble.seed, colorBomb: colorBombActive
   };
   if (armedPower) {
-    powerInventory[armedPower] = Math.max(0, (powerInventory[armedPower] || 0) - 1);
-    savePowerInventory();
+    consumePower(armedPower);
     armedPower = null;
     renderPowerPanel();
   }
@@ -3570,6 +3654,10 @@ function renderPauseToggles() {
 
 // --- pre-level toppings ---
 const TOPPING_KEYS = [GUIDE, COLORBOMB, BOMB, AIRSTRIKE];
+// a loadout option alongside the real power-up pre-arms, not an inventory item - picking it
+// doesn't consume anything, it just flips doubleLoadoutActive on for the level (see
+// consumePower() above)
+const DOUBLE_LOADOUT = 'double';
 let toppingsLevel = null, toppingsSelected = null;
 function openToppings(level) {
   toppingsLevel = level; toppingsSelected = null;
@@ -3595,6 +3683,13 @@ function renderToppingsGrid() {
     if (count > 0) card.addEventListener('click', () => { toppingsSelected = (toppingsSelected === key) ? null : key; renderToppingsGrid(); });
     grid.appendChild(card);
   }
+  // not tied to inventory - always pickable, and doesn't consume anything itself
+  const doubleOn = toppingsSelected === DOUBLE_LOADOUT;
+  const doubleCard = document.createElement('button');
+  doubleCard.className = 'toppingCard' + (doubleOn ? ' on' : '');
+  doubleCard.innerHTML = `<div class="toppingIcon" style="font-family:'Fredoka',sans-serif;font-weight:700;font-size:20px;color:var(--brown);">2X</div><div class="toppingName">Double Power-Ups</div><div class="toppingCount">Every other use is free</div>` + (doubleOn ? '<div class="toppingCheck">✓</div>' : '');
+  doubleCard.addEventListener('click', () => { toppingsSelected = doubleOn ? null : DOUBLE_LOADOUT; renderToppingsGrid(); });
+  grid.appendChild(doubleCard);
   document.getElementById('toppingsStartBtn').textContent = toppingsSelected ? 'Start with topping' : 'Start Level';
 }
 function closeToppings() {
@@ -3604,7 +3699,12 @@ function confirmToppingsStart() {
   const level = toppingsLevel, selection = toppingsSelected;
   document.getElementById('toppingsOverlay').style.display = 'none';
   startLevel(level);
-  if (selection) {
+  if (selection === DOUBLE_LOADOUT) {
+    // set after startLevel() on purpose - resetRuntimeState() (called from inside it) clears
+    // this flag along with everything else per-level, same reason armedPower is set after too
+    doubleLoadoutActive = true;
+    renderPowerPanel();
+  } else if (selection) {
     powerInventory[selection] = Math.max(0, (powerInventory[selection] || 0) - 1);
     savePowerInventory();
     armedPower = selection;
@@ -3806,6 +3906,7 @@ function resetRuntimeState() {
   particles = []; fallingBubbles = []; texts = []; rings = []; flying = null;
   currentBubble = null; nextBubble = null;
   armedPower = null; guideShotsLeft = 0; powerPickups = []; pendingChainExplosions = [];
+  doubleLoadoutActive = false; doublePendingFreeUse = {};
 }
 
 function startLevel(level) {

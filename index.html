@@ -759,6 +759,63 @@
   .dailyIcon img { width: 100%; height: 100%; object-fit: contain; }
   .dailyAmt { font-family: 'Fredoka'; font-weight: 700; font-size: 14px; }
   .dailyCheck { position: absolute; inset: 0; border-radius: 15px; background: rgba(143,203,107,.9); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; color: var(--matcha-ink); }
+
+  /* Flavor Journey chrome keeps the existing branded sky and character artwork. */
+  #hud { top: calc(10px + env(safe-area-inset-top)); left: 12px; right: 12px; padding: 8px 10px; grid-template-columns: minmax(0,1fr) minmax(80px,auto) var(--touch-size,44px); gap: 6px 10px; border-radius: 20px; background: #fff7ef; box-shadow: 0 4px 14px rgba(74,43,26,.12); z-index: 2; }
+  .hudLevel,.hudScore { min-width: 0; display: flex; flex-direction: column; gap: 2px; height: var(--touch-size,44px); justify-content: center; }
+  .hudLevel { grid-column: 1; grid-row: 1; }
+  .hudScore { grid-column: 2; grid-row: 1; text-align: right; }
+  .hudLevel small,.hudScore small { font-size: 10px; font-weight: 900; color: #876651; letter-spacing: .5px; }
+  .hudLevel small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #hud span { padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; color: #50321f; letter-spacing: 0; }
+  #levelLabel { font: 700 18px 'Fredoka',sans-serif; }
+  #scoreLabel { font: 700 23px 'Fredoka',sans-serif; font-variant-numeric: tabular-nums; opacity: 1; }
+  #timerWrap { grid-column: 1 / -1; grid-row: 2; width: 100%; flex-direction: row; gap: 10px; padding: 6px 9px; background: #f0e4d5; border-radius: 12px; }
+  #timerBarTrack { flex: 1; min-width: 0; width: auto; height: 9px; background: #ddc7b2; border: 0; box-shadow: none; }
+  #timerBarFill { background: linear-gradient(90deg,#8fbb78,#b75b42); }
+  #hud #timerLabel { flex: 0 0 44px; font-size: 15px; text-align: right; color: #50321f; text-shadow: none; font-variant-numeric: tabular-nums; }
+  #hud #timerLabel.urgent { color: #b6273b; }
+  #hud #timerLabel.frozen { color: #276b78; }
+  #pauseBtn { top: calc(18px + env(safe-area-inset-top)); left: auto; right: 22px; width: var(--touch-size,44px); height: var(--touch-size,44px); background: #f0e4d5; border: 0; box-shadow: none; border-radius: 15px; }
+  #pauseBtn span { background: #50321f; }
+  #streakLabel { top: calc(79px + var(--touch-size,44px) + env(safe-area-inset-top)); padding: 4px 12px; font-size: 11px; background: #fff7ef; color: #a65339; box-shadow: 0 2px 6px rgba(74,43,26,.14); }
+  #combo { top: calc(170px + env(safe-area-inset-top)); z-index: 3; }
+  #mapScreen { padding: calc(168px + env(safe-area-inset-top)) 0 calc(80px + var(--nav-height,64px) + var(--safe-b)); }
+  #mapScreen .ecoBar { right: 16px; }
+  .mapHeaderRow { top: calc(62px + env(safe-area-inset-top)); padding: 10px 14px; border-radius: 20px; background: #fff7ef; text-align: left; box-shadow: 0 4px 14px rgba(74,43,26,.1); }
+  .mapKicker { font-size: 9px; letter-spacing: 1.5px; color: #a65339; }
+  #mapScreen h2 { font: 700 22px 'Fredoka',sans-serif; margin: 2px 0 6px; color: #50321f; }
+  .journeyProgress { height: 5px; border-radius: 10px; background: #eadbca; overflow: hidden; }
+  #journeyProgressFill { height: 100%; background: #b75b42; border-radius: inherit; }
+  #journeyProgressLabel { display: block; margin-top: 4px; font-size: 10px; color: #876651; }
+  #galaxyScroll { min-height: 0; }
+  .levelNode { width: max(72px,var(--touch-size,44px)); height: max(72px,var(--touch-size,44px)); border: 0; padding: 0; background: none; }
+  .levelNodeInner { border-radius: 20px; animation: none; color: #50321f; border: 3px solid #fff7ef; box-shadow: 0 5px 0 rgba(74,43,26,.22); }
+  .levelNode.locked .levelNodeInner { color: #876651; box-shadow: 0 4px 0 rgba(74,43,26,.13); border-color: #fff7ef; font-size: 18px; }
+  .levelNode.current .levelNodeInner { animation: none; background: #b75b42 !important; color: #fff7ef; outline: 4px solid rgba(183,91,66,.25); box-shadow: 0 5px 0 #8a3f2d; }
+  .levelStars { width: 66px; }
+  .levelStars img { width: 20px; height: 20px; }
+  .levelMascotMarker { font-size: 10px; font-weight: 900; color: #a65339; background: #fff7ef; border-radius: 999px; padding: 4px 9px; animation: none; white-space: nowrap; }
+  .journeyContinue { position: absolute; left: 14px; right: 14px; bottom: calc(14px + var(--nav-height,64px) + var(--safe-b)); display: flex; align-items: center; justify-content: space-between; min-height: var(--touch-size,44px); padding: 12px 16px; border: 0; border-radius: 20px; background: #fff7ef; color: #50321f; box-shadow: 0 4px 12px rgba(74,43,26,.16); text-align: left; cursor: pointer; z-index: 3; }
+  .journeyContinue strong,.journeyContinue small { display: block; }
+  .journeyContinue strong { font: 700 18px 'Fredoka',sans-serif; }
+  .journeyContinue small { font-size: 10px; color: #876651; margin-top: 2px; }
+  .journeyContinue b { background: #b75b42; color: #fff7ef; padding: 12px 14px; border-radius: 14px; font-size: 13px; }
+  .journeyChapter { position: absolute; left: 16px; right: 16px; padding: 9px 14px; background: #fff7ef; color: #876651; border-radius: 14px; font-size: 11px; font-weight: 900; letter-spacing: .5px; }
+  #bottomNav { height: calc(var(--nav-height,64px) + var(--safe-b)); }
+  .navItem { min-height: var(--touch-size,44px); justify-content: center; }
+  @media(prefers-reduced-motion:reduce) { .menuFloaters img,.levelNodeInner,.levelMascotMarker { animation: none !important; } }
+
+  #powerPanel { left: 8px; right: 8px; bottom: var(--safe-b); grid-template-columns: repeat(5,var(--touch-size,44px)); justify-content: center; gap: 3px; padding: 2px; background: #fff7ef; border: 0; border-radius: 14px; box-shadow: 0 -2px 10px rgba(74,43,26,.12); }
+  .powerBtn { width: var(--touch-size,44px); height: var(--touch-size,44px); border: 1px solid #ddc7b2; background: #f0e4d5; padding: 9px; }
+  .powerBtn img { max-width: 38px; max-height: 38px; }
+  .powerBtn small { bottom: 2px; right: 2px; color: #50321f; background: #fff7ef; border: 0; padding: 1px 4px; }
+  .powerBtn.armed { background: #ffe1b0; border-color: #b75b42; box-shadow: inset 0 0 0 2px #b75b42; }
+  #bobaMascot { bottom: calc(64px + var(--safe-b)); }
+  #portraitPrompt { position: fixed; inset: 0; z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: max(20px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left)); background: #fff7ef; color: #50321f; text-align: center; }
+  #portraitPrompt img { width: 66px; height: 66px; object-fit: contain; }
+  #portraitPrompt h2 { font: 700 26px 'Fredoka',sans-serif; margin: 0; }
+  #portraitPrompt p { font-size: 17px; line-height: 1.5; margin: 0; }
 </style>
 </head>
 <body>
@@ -848,13 +905,14 @@
       <img src="icons/fall-cup2.png" style="--x:62%; --d:6s; --s:0.9" alt="">
     </div>
     <div class="mapHeaderRow">
-      <div class="mapHeaderCol"><span class="mapKicker">TEA MAP</span><h2 id="mapWorldTitle">Flavor Map</h2></div>
+      <div class="mapHeaderCol"><span class="mapKicker">FLAVOR JOURNEY</span><h2 id="mapWorldTitle">Flavor Map</h2><div class="journeyProgress"><div id="journeyProgressFill"></div></div><small id="journeyProgressLabel"></small></div>
     </div>
     <div class="ecoBar"></div>
     <div id="galaxyScroll">
       <canvas id="mapCanvas"></canvas>
       <div id="mapNodes"></div>
     </div>
+    <button id="journeyContinue" class="journeyContinue"><span><strong id="journeyNextLevel">Level 1-1</strong><small>Choose your toppings</small></span><b>Play next ›</b></button>
   </div>
 
   <div id="shopScreen">
@@ -878,14 +936,14 @@
     <button id="navShopBtn" class="navItem"><span class="navIcon navIconShop"><img src="icons/icon-shop.png" alt=""></span><span>Shop</span></button>
   </div>
 
-  <button id="pauseBtn" title="Pause"><span></span><span></span></button>
+  <button id="pauseBtn" title="Pause" aria-label="Pause game"><span></span><span></span></button>
   <div id="hud">
-    <span id="levelLabel">1-1</span>
+    <div class="hudLevel"><small id="flavorLabel">Brown Sugar Bay</small><span id="levelLabel">Level 1-1</span></div>
     <div id="timerWrap">
       <div id="timerBarTrack"><div id="timerBarFill"></div></div>
       <span id="timerLabel">1:00</span>
     </div>
-    <span id="scoreLabel">Score: 0</span>
+    <div class="hudScore"><small>SCORE</small><span id="scoreLabel">0</span></div>
   </div>
   <span id="streakLabel" style="display:none;"></span>
   <div id="combo"></div>
@@ -986,6 +1044,7 @@
     </div>
   </div>
 </div>
+<div id="portraitPrompt" role="status" aria-live="polite"><img src="icons/fall-cup1.png" alt=""><h2>Turn for a better sip</h2><p>Rotate your phone to portrait to play.<br>Your game will wait right here.</p></div>
 
 <script>
 // The <video id="introVideo"> tag lives in the markup as a sibling of #introVideoScreen
@@ -1017,7 +1076,7 @@ ctx.scale(DPR, DPR);
 // board's own geometry (fewer cols, smaller radius) so the shared engine functions below
 // (cellX/cellY/colsInRow, findMatch, popCluster, etc.) work unmodified for either board.
 let RADIUS = 20, DIAM = RADIUS * 2, ROW_H = RADIUS * 1.75;
-let COLS = 9, TOP_MARGIN = 130, LEFT_MARGIN = (W - COLS * DIAM) / 2;
+let COLS = 9, TOP_MARGIN = 170, LEFT_MARGIN = (W - COLS * DIAM) / 2;
 
 const COLORS = ['#FF6FA5', '#7CB342', '#C17F3E', '#FFB648', '#B28CFF']; // strawberry, matcha, brown sugar, mango, taro
 // each flavor has its own little personality, like the character sheet: cheerful, playful, cranky, anxious, dreamy
@@ -1871,6 +1930,7 @@ function renderPowerPanel() {
     btn.className = 'powerBtn' + (armedPower === def.key ? ' armed' : '') + (count <= 0 ? ' disabled' : '');
     btn.innerHTML = `<img src="${def.img}" alt=""><small>${count}</small>`;
     btn.title = def.name;
+    btn.setAttribute('aria-label', `${def.name}, ${count} available`);
     if (count > 0) btn.addEventListener('click', () => activatePower(def.key));
     panel.appendChild(btn);
   }
@@ -3316,8 +3376,9 @@ function draw() {
   ctx.beginPath(); ctx.arc(shooterX, shooterY, RADIUS + 9, 0, Math.PI * 2); ctx.stroke();
   ctx.restore();
 
-  document.getElementById('scoreLabel').textContent = `Score: ${score}`;
-  document.getElementById('levelLabel').textContent = appState === 'endless' ? 'ENDLESS' : worldLabel(currentLevel);
+  document.getElementById('scoreLabel').textContent = score.toLocaleString('en-US');
+  document.getElementById('levelLabel').textContent = appState === 'endless' ? 'Endless' : `Level ${worldLabel(currentLevel)}`;
+  document.getElementById('flavorLabel').textContent = appState === 'endless' ? 'FLAVOR MARATHON' : themeForWorld(Math.floor((currentLevel - 1) / LEVELS_PER_WORLD)).name;
   const timerEl = document.getElementById('timerLabel');
   timerEl.textContent = fmtTime(levelTimeLeft);
   const timerDenom = appState === 'endless' ? endlessDropInterval : (levelConfig ? levelConfig.timeLimit : 1);
@@ -3436,9 +3497,17 @@ function setGameVisible(visible) {
   document.getElementById('timerWrap').style.display = visible ? 'flex' : 'none';
   document.getElementById('powerPanel').style.display = visible ? 'grid' : 'none';
   document.getElementById('pauseBtn').style.display = visible ? 'flex' : 'none';
+  // Sound controls remain in Settings and the pause sheet; the journey chrome
+  // reserves its top-right slot for the primary pause control and economy row.
+  document.getElementById('muteBtn').style.display = visible || appState === 'map' ? 'none' : 'flex';
   document.getElementById('bottomNav').style.display = visible ? 'none' : 'flex';
   document.getElementById('bobaMascot').style.display = visible ? 'block' : 'none';
   if (visible) setBobaMood('happy');
+  if (!visible) {
+    document.getElementById('streakLabel').style.display = 'none';
+    document.getElementById('combo').classList.remove('show');
+  }
+  if (visible) { lastFitScale = 0; fitToViewport(); }
 }
 
 // --- Boba mascot moods: [row, col, xNudge] into the 6-col x 6-row sprite sheet.
@@ -3566,10 +3635,16 @@ function buildGalaxyMap() {
 
   const currentTheme = themeForWorld(Math.floor((prog.unlocked - 1) / LEVELS_PER_WORLD));
   const titleEl = document.getElementById('mapWorldTitle');
-  if (titleEl) titleEl.textContent = `World ${Math.floor((prog.unlocked - 1) / LEVELS_PER_WORLD) + 1} · ${currentTheme.name}`;
+  const worldIdx = Math.floor((prog.unlocked - 1) / LEVELS_PER_WORLD);
+  if (titleEl) titleEl.textContent = currentTheme.name;
+  document.querySelector('.mapKicker').textContent = `WORLD ${worldIdx + 1} · FLAVOR JOURNEY`;
+  const completedInWorld = Array.from({ length: LEVELS_PER_WORLD }, (_, i) => worldIdx * LEVELS_PER_WORLD + i + 1).filter(level => (prog.stars && prog.stars[level]) > 0).length;
+  document.getElementById('journeyProgressFill').style.width = `${completedInWorld * 10}%`;
+  document.getElementById('journeyProgressLabel').textContent = `${completedInWorld} of ${LEVELS_PER_WORLD} flavors mastered`;
+  document.getElementById('journeyNextLevel').textContent = `Level ${worldLabel(prog.unlocked)}`;
 
   const positions = [];
-  let y = 50, currentNodeY = 0;
+  let y = 88, currentNodeY = 0;
   for (let w = 0; w < numWorlds; w++) {
     const theme = themeForWorld(w);
     for (let i = 0; i < LEVELS_PER_WORLD; i++) {
@@ -3578,7 +3653,7 @@ function buildGalaxyMap() {
       const xFrac = MAP_X_PATTERN[i % MAP_X_PATTERN.length];
       positions.push({ level, x: xFrac * W, y, theme });
       if (level === prog.unlocked) currentNodeY = y;
-      y += MAP_NODE_STEP_Y;
+      y += MAP_NODE_STEP_Y + (i === LEVELS_PER_WORLD - 1 ? 72 : 0);
     }
   }
   const totalHeight = y + 40;
@@ -3588,27 +3663,36 @@ function buildGalaxyMap() {
 
   const mctx = mapCanvas.getContext('2d');
   mctx.clearRect(0, 0, W, totalHeight);
-  for (let i = 0; i < Math.floor(totalHeight / 5); i++) {
-    mctx.fillStyle = `rgba(122,74,46,${0.08 + Math.random()*0.18})`;
-    mctx.beginPath(); mctx.arc(Math.random()*W, Math.random()*totalHeight, Math.random()*1.3, 0, Math.PI*2); mctx.fill();
+  // Quiet flavor hills frame the route, leaving all existing sky artwork visible.
+  for (let w = 0; w < numWorlds; w++) {
+    const sectionY = 88 + w * (LEVELS_PER_WORLD * MAP_NODE_STEP_Y + 72);
+    const theme = themeForWorld(w);
+    mctx.fillStyle = theme.color;
+    mctx.globalAlpha = 0.16;
+    mctx.beginPath(); mctx.ellipse(-30, sectionY + 250, 180, 290, -0.25, 0, Math.PI * 2); mctx.fill();
+    mctx.beginPath(); mctx.ellipse(W + 30, sectionY + 730, 175, 290, 0.2, 0, Math.PI * 2); mctx.fill();
+    mctx.globalAlpha = 1;
+    if (w > 0) {
+      const chapter = document.createElement('div');
+      chapter.className = 'journeyChapter';
+      chapter.style.top = (sectionY - 83) + 'px';
+      chapter.textContent = `WORLD ${w + 1} · ${theme.name}`;
+      mapNodes.appendChild(chapter);
+    }
   }
-  mctx.setLineDash([1, 16]); mctx.lineCap = 'round';
+  mctx.setLineDash([]); mctx.lineCap = 'round';
   for (let i = 0; i < positions.length - 1; i++) {
     const a = positions[i], b = positions[i + 1];
-    const completed = b.level < prog.unlocked;
-    mctx.lineWidth = completed ? 9 : 7;
-    if (completed) {
-      mctx.strokeStyle = '#FFC24B';
-      mctx.shadowColor = 'rgba(255,196,30,0.65)';
-      mctx.shadowBlur = 10;
-    } else {
-      mctx.strokeStyle = 'rgba(122,74,46,0.35)';
-      mctx.shadowBlur = 0;
-    }
-    mctx.beginPath();
-    mctx.moveTo(a.x, a.y);
-    mctx.lineTo(b.x, b.y);
+    const completed = b.level <= prog.unlocked;
+    mctx.lineWidth = 12;
+    mctx.strokeStyle = completed ? '#fff7ef' : 'rgba(255,247,239,.65)';
+    mctx.beginPath(); mctx.moveTo(a.x, a.y);
+    mctx.bezierCurveTo(a.x, a.y + MAP_NODE_STEP_Y * .6, b.x, b.y - MAP_NODE_STEP_Y * .6, b.x, b.y);
     mctx.stroke();
+    if (completed) {
+      mctx.lineWidth = 3; mctx.strokeStyle = '#b75b42';
+      mctx.setLineDash([2, 9]); mctx.stroke(); mctx.setLineDash([]);
+    }
   }
   mctx.shadowBlur = 0;
 
@@ -3617,7 +3701,10 @@ function buildGalaxyMap() {
     const isCurrent = p.level === prog.unlocked;
     const stars = (prog.stars && prog.stars[p.level]) || 0;
     const bestCombo = (prog.bestCombo && prog.bestCombo[p.level]) || 0;
-    const div = document.createElement('div');
+    const div = document.createElement('button');
+    div.type = 'button';
+    div.disabled = !unlocked;
+    div.setAttribute('aria-label', `Level ${worldLabel(p.level)}, ${isCurrent ? 'play next' : unlocked ? 'unlocked' : 'locked'}, ${stars} stars`);
     div.className = 'levelNode ' + (unlocked ? 'unlocked' : 'locked') + (isCurrent ? ' current' : '');
     div.style.left = p.x + 'px';
     div.style.top = p.y + 'px';
@@ -3625,7 +3712,7 @@ function buildGalaxyMap() {
     inner.className = 'levelNodeInner';
     inner.style.background = unlocked
       ? `radial-gradient(circle at 35% 30%, ${shadeColor(p.theme.color, 35)}, ${p.theme.color} 55%, ${shadeColor(p.theme.color, -28)} 100%)`
-      : `radial-gradient(circle at 35% 30%, #5a5a66, #26262e 100%)`;
+      : '#dfd2c1';
     inner.style.animationDelay = `-${(idx * 0.37) % 3.2}s`;
     inner.innerHTML = unlocked ? `<span>${p.level}</span>` : '🔒';
     div.appendChild(inner);
@@ -3664,8 +3751,8 @@ function buildGalaxyMap() {
       const marker = document.createElement('div');
       marker.className = 'levelMascotMarker';
       marker.style.left = p.x + 'px';
-      marker.style.top = (p.y - MAP_PLANET_R - 42) + 'px';
-      marker.textContent = '🧋';
+      marker.style.top = (p.y - MAP_PLANET_R - 28) + 'px';
+      marker.textContent = 'PLAY NEXT';
       mapNodes.appendChild(marker);
     }
   });
@@ -4210,6 +4297,7 @@ document.getElementById('muteBtn').addEventListener('click', toggleBgmMute);
 document.getElementById('dailyGiftBtn').addEventListener('click', showDailyOverlay);
 document.getElementById('homeLeaderboardBtn').addEventListener('click', openLeaderboard);
 document.getElementById('pauseBtn').addEventListener('click', openPause);
+document.getElementById('journeyContinue').addEventListener('click', () => openToppings(loadProgress().unlocked));
 document.getElementById('resumeBtn').addEventListener('click', closePause);
 document.getElementById('restartBtn').addEventListener('click', restartFromPause);
 document.getElementById('quitBtn').addEventListener('click', quitFromPause);
@@ -4229,8 +4317,19 @@ document.getElementById('seeIntroBtn').addEventListener('click', () => showIntro
 // --- mobile-responsive scaling: fixed 480x720 virtual resolution, scaled to fit any screen ---
 const wrapEl = document.getElementById('wrap');
 let lastFitScale = 0;
+let orientationAutoPaused = false;
 function fitToViewport() {
   const vw = window.innerWidth, vh = window.innerHeight;
+  const landscape = vw > vh && vh < 600;
+  document.getElementById('portraitPrompt').style.display = landscape ? 'flex' : 'none';
+  wrapEl.inert = landscape;
+  if (landscape && isGameplay() && !gameOver) {
+    orientationAutoPaused = true;
+    openPause();
+  } else if (!landscape && orientationAutoPaused) {
+    orientationAutoPaused = false;
+    closePause();
+  }
   const scale = Math.min(vw / W, vh / H, 1.4);
   // some Android WebViews (seen on certain Huawei/Honor builds) report a stale innerWidth/
   // innerHeight right after the activity is forced into portrait on launch, and never fire a
@@ -4239,6 +4338,26 @@ function fitToViewport() {
   // (skip the DOM write entirely when nothing changed, so idle frames don't thrash layout).
   if (Math.abs(scale - lastFitScale) < 0.001) return;
   lastFitScale = scale;
+  wrapEl.style.setProperty('--touch-size', Math.max(44, 44 / scale) + 'px');
+  wrapEl.style.setProperty('--nav-height', Math.max(64, 44 / scale + 12) + 'px');
+  // Reserve the actual chrome height, including reported safe areas and small-screen
+  // touch targets, before placing any board pearls. Geometry uses the same origin.
+  const hudEl = document.getElementById('hud');
+  if (hudEl.offsetHeight) TOP_MARGIN = Math.max(170, hudEl.offsetTop + hudEl.offsetHeight + 36);
+  // The bottom toolbar follows the safe inset; keep the loaded pearl above it.
+  const toolbarInset = parseFloat(getComputedStyle(document.getElementById('powerPanel')).bottom) || 0;
+  // Lift the existing cup and its straw together above the bottom power row.
+  // The board's loss boundary remains unchanged; this is launcher placement only.
+  shooterY = H - 90 - toolbarInset - 52;
+  // Notched screens can consume both ends of the scene. Keep all twelve rows
+  // and the same loss boundary, fitting pearl geometry into the remaining space.
+  // A twelve-row board ends at TOP_MARGIN + (11 * 1.75 + 2) * radius;
+  // the straw starts at shooterY - 2.05 * LAUNCHER_SCALE * radius.
+  const boardAndStrawUnits = 11 * 1.75 + 2 + 2.05 * LAUNCHER_SCALE;
+  RADIUS = Math.max(8, Math.min(20, (shooterY - TOP_MARGIN - 10) / boardAndStrawUnits));
+  DIAM = RADIUS * 2;
+  ROW_H = RADIUS * 1.75;
+  LEFT_MARGIN = (W - COLS * DIAM) / 2;
   wrapEl.style.transform = `scale(${scale})`;
 }
 window.addEventListener('resize', fitToViewport);

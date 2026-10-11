@@ -1,5 +1,17 @@
 # Flavor Journey QA
 
+## Current atlas replacement: 1.5 / code 6
+
+**Final scoped acceptance: 10/10.** Blue and clear Frozen Sinkers use the exact user-supplied 1774x887 atlas, with runtime crops from blue row 4 and clear row 6. Targeted artwork/mobile checks passed **128/128**, and near-danger-line gameplay passed **12/12**, both exit 0. The first artwork run was interrupted by local HTTP connection resets, with no failing artwork assertion; its diagnostic report is preserved as ignored `evidence/art-report-first-failure.json`. The unchanged runner completed successfully on retry without product changes.
+
+QA independently reran `node tests/qa/packages.cjs` against the fresh 1.5/code 6 APK/AAB: **65 production assets per archive, zero mismatches, exit 0**. Root and production HTML match `EE68492EE87D941CF84CA6A7EEFF04DC50A3513DC76059FDD63247CCE95B075D`. DevOps verified APK v2 signature/one signer, package `com.cheffrey.popabobba`, code 6/name 1.5/minimum SDK 24, and AAB jar signature; existing certificate/toolchain warnings are recorded in `docs/RELEASE-v1.5.md`.
+
+APK SHA256: `47E06CD0D8A8DDAF4AFAD293D59BBF8DED846571FCE8E6AF3A12CC1967B186FB`.
+
+AAB SHA256: `D58E5489F5D5845C453F5E77F4D554AFAB69A8F7683D41BFABB488992D1AAEC5`.
+
+Independent visual inspection of rendered twenty-pose contact sheets confirms intact blue faces/topknots and clear faces/flowers, without label chips or adjacent faces. Gameplay and How To use the same supplied artwork. The eight tested contexts cover five portrait widths, DPR 3, and synthetic 44px top/24px bottom insets at 320px and 390px. Animation renders at least three distinct idle/blink frames; all crop rectangles remain in the expected rows, existing two-hit rules pass, and real angled shots at the lowest legal occupied row remain playable. Source atlas byte equality was audited by root against the supplied file. The prior 1.4 evidence below covers unchanged navigation, geometry and ad timing. Native devices and live ads remain outside this browser-stub scope.
+
 ## Current follow-up release: 1.4 / code 5
 
 **Final scoped acceptance: 10/10 rubric points passed.** The updated release passed the complete mobile matrix **374/374**, native ad bridge ordering **173/173**, rewarded retry **20/20**, focused layout **80/80**, updated artwork **120/120**, and near-danger-line gameplay **12/12** checks. All runners exited 0. The full matrix initially found three 320px streak/board overlaps (371/374); the coder repaired the measured streak reservation and the repeated matrix passed 374/374. No remaining scoped frontend failures are accepted.

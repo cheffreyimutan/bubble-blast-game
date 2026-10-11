@@ -1084,13 +1084,31 @@ const COLORS = ['#FF6FA5', '#7CB342', '#C17F3E', '#FFB648', '#B28CFF']; // straw
 // The pose rig (which columns mean what) is shared by every row - only `row` differs per flavor.
 const pearlSprite = new Image();
 pearlSprite.src = 'pearl-sprites.png';
-const SINKER_SPRITES = { blue: new Image(), clear: new Image() };
-SINKER_SPRITES.blue.src = 'sinker-blue-sprites.png';
-SINKER_SPRITES.clear.src = 'sinker-clear-sprites.png';
-const SINKER_ANIMATION = [0, 1, 0, 2, 3, 4, 5, 4];
-function sinkerFrame(seed, damaged = false, worried = false) {
-  if (damaged || worried) return 6;
-  return SINKER_ANIMATION[Math.floor(timeNow * 4 + seed * 13) % SINKER_ANIMATION.length];
+// User-supplied atlas is copied byte-for-byte; crops omit label chips at render time.
+const sinkerAtlas = new Image();
+sinkerAtlas.src = 'kawaii-boba-emotes.png';
+const SINKER_SPRITES = { blue: sinkerAtlas, clear: sinkerAtlas };
+const SINKER_ROWS = { blue: 4, clear: 6 };
+const SINKER_ROW_CROP = { blue: { top: 570, height: 86 }, clear: { top: 813, height: 71 } };
+function sinkerFrame(seed, damaged = false, worried = false, mood = 'IDLE') {
+  const state = worried ? 'HIT' : damaged ? 'SAD' : mood.toUpperCase();
+  if (state === 'IDLE' || !BOBA_POSE[state]) return animatedPearlPick(seed, false);
+  const frames = BOBA_POSE[state];
+  return frames[Math.floor(timeNow * (state === 'HIT' ? 6 : 3) + seed * 13) % frames.length];
+}
+function sinkerCrop(variant, frame) {
+  const row = SINKER_ROW_CROP[variant];
+  if (!row) return null;
+  const pose = Math.max(0, Math.min(19, Math.floor(frame)));
+  const xScale = sinkerAtlas.naturalWidth / 1125;
+  const yScale = sinkerAtlas.naturalHeight / 887;
+  return {
+    sx: (PEARL_COL_CENTER[pose] - PEARL_COL_HALFW[pose]) * xScale,
+    sy: row.top * yScale,
+    sw: PEARL_COL_HALFW[pose] * 2 * xScale,
+    sh: row.height * yScale,
+    row: SINKER_ROWS[variant], frame: pose
+  };
 }
 const PEARL_CARD_W = 0, PEARL_CELL_W = 1125 / 20, PEARL_CELL_H = 563 / 7;
 // The sheet's grid is NOT perfectly uniform (it reads as AI-generated art, not a hand-cut atlas):
@@ -2175,11 +2193,15 @@ function drawBubble(x, y, color, opts = {}) {
   ctx.scale(sx, sy);
   const sinkerArt = SINKER_SPRITES[opts.sinkerVariant];
   if (opts.sinker > 0 && sinkerArt && sinkerArt.naturalWidth) {
-    const frame = sinkerFrame(seed, opts.sinker < SINKER_START, worried);
-    const cellW = sinkerArt.naturalWidth / 4, cellH = sinkerArt.naturalHeight / 2;
-    const size = r * 2.2;
+    const mood = opts.sinkerMood || (shotStreak >= 5 ? 'HAPPY' : 'IDLE');
+    const frame = opts.sinkerPose == null ? sinkerFrame(seed, opts.sinker < SINKER_START, worried, mood) : opts.sinkerPose;
+    const crop = sinkerCrop(opts.sinkerVariant, frame);
+    // Use the original pearl atlas's calibrated nonuniform horizontal windows.
+    // Blue topknots and clear flowers stay inside these row-specific face crops.
+    const width = r * 2 * 1.08 * (PEARL_COL_HALFW[crop.frame] * 2 / PEARL_CELL_W);
+    const height = width * crop.sh / crop.sw;
     ctx.globalAlpha *= opts.sinkerVariant === 'clear' ? .82 : 1;
-    ctx.drawImage(sinkerArt, (frame % 4) * cellW, Math.floor(frame / 4) * cellH, cellW, cellH, -size / 2, -size / 2, size, size);
+    ctx.drawImage(sinkerArt, crop.sx, crop.sy, crop.sw, crop.sh, -width / 2, -height / 2, width, height);
     ctx.globalAlpha = 1;
     // The small one-hit marker supplements the worried pose for a clear damage cue.
     if (opts.sinker < SINKER_START) {
@@ -4081,8 +4103,8 @@ const HOWTO_SPECIALS = [
   { color: '#FFB648', opts: { goldenPearl: true }, name: 'Golden Pearl', blurb: 'Pop this lucky pearl for bonus pearls.' },
   { color: '#FF6FA5', opts: { ice: 2 }, name: 'Ice Cube', blurb: 'Pop adjacent pearls to thaw its two layers, then match the pearl inside.' },
   { color: '#C17F3E', opts: { sinker: 2, sinkerVariant: 'slate' }, name: 'Frozen Sinker', blurb: 'Pop adjacent pearls to clear two hits and drop this clump. Direct shots do not damage it.' },
-  { img: 'sinker-blue.png', name: 'Blue Frozen Sinker', blurb: 'Two adjacent popped pearls clear this clump. A single combo can do both hits; direct shots do not damage it.' },
-  { img: 'sinker-clear.png', transparent: true, name: 'Clear Frozen Sinker', blurb: 'The same two-hit obstacle in a glassy form. Pop neighboring pearls to drop it; direct shots do not damage it.' },
+  { color: '#C17F3E', opts: { sinker: 2, sinkerVariant: 'blue', sinkerPose: 0 }, name: 'Blue Frozen Sinker', blurb: 'Two adjacent popped pearls clear this clump. A single combo can do both hits; direct shots do not damage it.' },
+  { color: '#C17F3E', opts: { sinker: 2, sinkerVariant: 'clear', sinkerPose: 0 }, name: 'Clear Frozen Sinker', blurb: 'The same two-hit obstacle in a glassy form. Pop neighboring pearls to drop it; direct shots do not damage it.' },
   { color: STONE, name: 'Stone', blurb: 'Cannot be matched directly. Clear the pearls supporting it to make it fall.' }
 ];
 const HOWTO_PEARLS = [
@@ -4103,10 +4125,10 @@ function howToBubbleArt(color, opts = {}) {
   }
   return `<img src="${howToArtCache.get(key)}" alt="">`;
 }
-pearlSprite.addEventListener('load', () => {
+[pearlSprite, sinkerAtlas].forEach(sprite => sprite.addEventListener('load', () => {
   howToArtCache.clear();
   if (document.getElementById('howToOverlay').style.display !== 'none') renderHowTo();
-});
+}));
 function howToRow(iconHtml, name, blurb) {
   return `<div class="howToRow"><span class="howToIcon">${iconHtml}</span>
     <span class="howToText"><span class="howToName">${name}</span><span class="howToDesc">${blurb}</span></span></div>`;

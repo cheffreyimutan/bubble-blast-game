@@ -1,23 +1,28 @@
 # Sinker artwork
 
-Created with the built-in imagegen tool on 2026-10-11. Existing `pearl-sprites.png` was used only as a style reference; no existing art was replaced.
+## Active source
 
-## Files and consumption
+`kawaii-boba-emotes.png` is an unchanged copy of the user's `Kawaii Boba Emote Sprite Atlas.png` (1774 × 887 RGBA), copied into both repository root and `www`. SHA256 for the source and both copies is identical. No redraw, image generation, resampling, or background changes were applied to this file.
 
-- `sinker-blue-sprites.png`: 1024 × 512, RGBA, four columns × two rows.
-- `sinker-clear-sprites.png`: same dimensions and layout.
-- `sinker-blue.png` / `sinker-clear.png`: 256 × 256 static frame zero, for How To cards.
+The source contains seven flavor rows and twenty expressions per row. Runtime canvas crops use blue row 4 and clear row 6 (zero-based). Existing slate/anchor sinkers remain a third cosmetic variant; missing `sinkerVariant` values preserve that original rendering. All three variants retain the same two adjacent popped-cell damage hits and drop behavior; ice mechanics remain separate.
 
-Each cell is exactly 256 × 256; row-major index is 0 through 7. Crop `(index % 4) * 256, floor(index / 4) * 256, 256, 256`. Draw the complete cell at approximately 2.2 times the collision radius. Frame zero is the static icon. Frame meanings: neutral, wobble left, half blink, blink closed, neutral, wobble right, worried, relieved.
+## Runtime crop geometry
 
-The clear variant is drawn as glass with alpha-zero surroundings. Its body remains readable; gameplay can apply additional translucency to the complete sprite. Both variants share the same two-hit sinker behavior and are unrelated to ice.
+`sinkerCrop(variant, frame)` exposes each source rectangle. Horizontal centers and half-widths reuse the calibrated `PEARL_COL_CENTER` and `PEARL_COL_HALFW` tables in the existing 1125-pixel coordinate system, scaled by the supplied image width. Columns are deliberately nonuniform rather than `width / 20` windows.
 
-## Generation prompts
+Row-specific source-pixel windows exclude captions and neighboring rows while retaining blue topknots and clear flowers:
 
-Blue: Production 2D mobile game sprite atlas matching the existing glossy kawaii pearl reference. New round sapphire/aqua blue sinker, tiny expressive face and miniature side fins, small pale silver anchor on forehead. Eight isolated same-identity characters in a 4 × 2 grid on an absolutely transparent background, no text/grid/scenery. Row-major expressions: neutral, gentle left wobble, half blink, closed blink, neutral, right wobble, worried, relieved. Same scale, ample padding, no cast shadows or loose sparkles.
+- Blue: `y = 570`, height `86`.
+- Clear: `y = 813`, height `71`.
 
-Clear: Same atlas specification and reference style, with a clear/glass pearl body, subtle cool rim, reflections, readable tiny face and silver anchor. No flower/crown/opaque stone. Same eight expressions and grid.
+These windows were checked across all twenty expressions using source alpha bounds. The canvas draws cropped character art at the original pearl renderer's proportions. Clear sinkers use 0.82 rendering alpha; the source image remains unchanged.
 
-Final cleanup prompt for each: Preserve all eight characters, faces, anchors, layout and scale. Fix only background extraction; remove disconnected fragments outside character silhouettes and preserve smooth antialiased edges, transparent alpha outside, no labels/grid/scenery.
+## Expressions and How To
 
-Generated outputs were visually inspected, then mechanically split and packed into exact integer cells. Disconnected alpha islands outside each primary character silhouette were discarded during extraction. Character pixels were otherwise preserved, scaled to fit inside 232 × 232, and centered in 256 × 256 cells. Both atlas PNGs retain alpha in the range 0–255 and transparent gutters; static icons match atlas frame zero.
+All twenty source expressions remain available through the existing `BOBA_POSE` groups: Idle 0–2, Blink 3–4, Happy 5–7, Excited 8–9, Angry 10–11, Sad 12–13, Hit 14–15, Dizzy 16–17, Celebrate 18–19. `sinkerFrame` selects idle/blink normally, happy during a streak, hit while recently worried, and sad after damage. Explicit mood/pose overrides preserve access to all expressions.
+
+How To uses the same canvas renderer and source crops as gameplay, with pose zero for blue and clear examples. It no longer refers to generated static sinker images.
+
+## Superseded historical files
+
+`sinker-blue-sprites.png`, `sinker-clear-sprites.png`, `sinker-blue.png`, and `sinker-clear.png` are the previous generated artwork. They remain as historical files pending repository cleanup, but active gameplay and How To contain no references to them.

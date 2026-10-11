@@ -1,5 +1,21 @@
 # Flavor Journey QA
 
+## Current follow-up release: 1.4 / code 5
+
+**Final scoped acceptance: 10/10 rubric points passed.** The updated release passed the complete mobile matrix **374/374**, native ad bridge ordering **173/173**, rewarded retry **20/20**, focused layout **80/80**, updated artwork **120/120**, and near-danger-line gameplay **12/12** checks. All runners exited 0. The full matrix initially found three 320px streak/board overlaps (371/374); the coder repaired the measured streak reservation and the repeated matrix passed 374/374. No remaining scoped frontend failures are accepted.
+
+QA independently reran `node tests/qa/packages.cjs` against the fresh 1.4/code 5 APK and AAB: **64 production assets checked in each archive, zero mismatches, exit 0**. Root and production HTML hash match `5013607CAF1283EF94F42E2B9F6BC7987ED8C8BF37DE3B955FC5776C63FB6288`. DevOps verified APK v2 signature with one signer, package `com.cheffrey.popabobba`, version 1.4/code 5, minimum SDK 24/target SDK 36, and AAB jar signature. The build required retry after a transient generated zip-cache lock. Existing Kotlin lint metadata diagnostics and self-signed/no-timestamp/certificate-chain/ZIP-manifest-order signature warnings remain documented in `docs/RELEASE-v1.4.md`. Native hardware and live native ads were not executed.
+
+APK SHA256: `89FEE2A773CE0ED58419E8DFA111C3E6C53194AA52A6A5133089437A4652FB08`.
+
+AAB SHA256: `F1403333EA70CB4EFE8493F8B66E987A70D341A2DF02A019240DBDABD5364454`.
+
+Independent visual review of the final near-line screenshots at 320px and 390px with synthetic top 44px/bottom 24px insets confirms the mascot face stays below the danger line and above the power toolbar. Anchored blue/clear sinker stacks reach the lowest legal occupied row (centers 666.887 and 678.379 against danger Y=682). Real angled touchscreen shots score 42, consume one shot, damage the adjacent sinker once and remain playable without premature loss. The How To screenshots show intact artwork and readable distinctions between Frozen Sinker, Blue Frozen Sinker and Clear Frozen Sinker.
+
+Reproduce with `node tests/qa/mobile.cjs`, `node tests/qa/mobile.cjs --layout-spot`, `node tests/qa/mobile.cjs --art`, `node tests/qa/mobile.cjs --near-line`, `node tests/qa/ads.cjs`, and `node tests/qa/ads.cjs --reward-retry`. Evidence is local and ignored under `tests/qa/evidence/`. The full ad run predates the final geometry-only repair; native ad code was unchanged by that repair. Delayed local native bridge stubs verify dismissal ordering, failures/timeouts, rapid clicks, pause exits and rewarded earned/dismissal behavior; they do not execute live native ads. The isolated-profile/local-server permissions and emulation limitations described below also apply to this release.
+
+## Historical release: 1.3 / code 4
+
 Run `node tests/qa/mobile.cjs` from the repository root. Run `node tests/qa/mobile.cjs --layout-spot` for focused geometry retesting after layout repairs. Requires the repository's Playwright dependency and installed Chrome at `C:/Program Files/Google/Chrome/Application/chrome.exe`. Any failed assertion produces a nonzero process exit code.
 
 The runner starts an ephemeral HTTP server bound only to `127.0.0.1` and tests the production `www/index.html`. It creates a fresh isolated browser context for each viewport, with synthetic localStorage fixtures. It never uses the user's browser profile or saved game data. All external requests are fulfilled locally with empty responses, so fonts use offline fallback. Audio and images are served from the actual repository, with range support for media.

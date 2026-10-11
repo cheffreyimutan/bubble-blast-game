@@ -39,7 +39,7 @@
   html, body {
     margin: 0; width: 100%; height: 100%;
     /* matches #wrap's own top gradient color, not a neutral dark shade - on phones taller/
-       narrower than our fixed 390x844 canvas, the uniform-scale fit (see fitToViewport) can
+       narrower than our 390×928 scene, the uniform-scale fit (see fitToViewport) can
        leave a sliver of body visible past #wrap's bottom or sides, and a plain dark background
        there used to look like a broken black bar instead of a seamless edge. */
     background: var(--cream1);
@@ -51,7 +51,7 @@
   .fredoka { font-family: 'Fredoka', system-ui, sans-serif; }
   .chewy { font-family: 'Chewy', system-ui, sans-serif; }
   #wrap {
-    position: relative; width: 390px; height: 844px;
+    position: relative; width: 390px; height: 928px;
     background: linear-gradient(180deg, var(--cream1) 0%, var(--cream2) 55%, var(--cream3) 100%);
     color: var(--ink);
     /* top center, not center center: with body's align-items:flex-start (see html,body rule
@@ -65,13 +65,8 @@
     touch-action: none;
   }
   #mapCanvas { display: block; }
-  /* 3-column grid (level pill / timer / score pill), not flex - #timerWrap used to be a
-     separately absolutely-positioned element centered independently of this row, which meant
-     nothing reserved it any space: once the score pill's text got wide enough (higher scores,
-     more digits) its left edge could run right into the timer bar. A grid's middle column
-     reserves real space for the timer by construction, so the two can never overlap regardless
-     of how wide either neighbor's content gets. The streak badge is deliberately NOT a 3rd
-     column here - seeits own comment below for why it lives outside #hud entirely. */
+  /* Shared HUD defaults. Flavor Journey overrides below reserve separate
+     level/score/pause and timer rows; streak feedback stays outside the HUD. */
   #hud {
     position: absolute; top: calc(20px + env(safe-area-inset-top)); left: 0; right: 0;
     display: none; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
@@ -504,8 +499,8 @@
   }
   #muteBtn:active { transform: translateY(2px); box-shadow: none; }
   #powerPanel {
-    /* 2x2 grid tucked in the bottom-right corner: clear of the board above the kill line,
-       and clear of the boba mascot (centered, bottom edge) which it sits beside, not over. */
+    /* Shared power-panel defaults; the Flavor Journey toolbar below uses
+       one row with touch targets sized for the rendered mobile viewport. */
     position: absolute; right: calc(8px + env(safe-area-inset-right)); bottom: calc(18px + var(--safe-b)); z-index: 4;
     display: none; grid-template-columns: repeat(2, 1fr); gap: 6px;
     background: rgba(20,14,40,0.4); backdrop-filter: blur(6px);
@@ -646,9 +641,8 @@
   .navHomeDot img { width: 100%; height: 100%; object-fit: contain; }
 
   /* -- pause button (in-game) -- */
-  /* matches the HUD pills' dark-glass look (not the opaque cream "card" style used by menu
-     buttons elsewhere) - this sits directly below the score/level pills in-game, and a bright
-     solid card there read as a mismatched, unrelated control instead of part of the same cluster. */
+  /* Shared pause defaults. The Flavor Journey override places this control
+     beside the score in the cream HUD header. */
   #pauseBtn {
     /* left matches #hud's own left padding exactly, so this lines up with the level pill
        directly above it instead of sitting a few px further out. */
@@ -778,7 +772,7 @@
   #hud #timerLabel.frozen { color: #276b78; }
   #pauseBtn { top: calc(18px + env(safe-area-inset-top)); left: auto; right: 22px; width: var(--touch-size,44px); height: var(--touch-size,44px); background: #f0e4d5; border: 0; box-shadow: none; border-radius: 15px; }
   #pauseBtn span { background: #50321f; }
-  #streakLabel { top: calc(79px + var(--touch-size,44px) + env(safe-area-inset-top)); padding: 4px 12px; font-size: 11px; background: #fff7ef; color: #a65339; box-shadow: 0 2px 6px rgba(74,43,26,.14); }
+  #streakLabel { top: calc(79px + var(--touch-size,44px) + env(safe-area-inset-top)); padding: 4px 12px; font-size: 11px; line-height: 16px; background: #fff7ef; color: #a65339; box-shadow: 0 2px 6px rgba(74,43,26,.14); }
   #combo { top: calc(170px + env(safe-area-inset-top)); z-index: 3; }
   #mapScreen { padding: calc(168px + env(safe-area-inset-top)) 0 calc(80px + var(--nav-height,64px) + var(--safe-b)); }
   #mapScreen .ecoBar { right: 16px; }
@@ -803,7 +797,9 @@
   .journeyContinue b { background: #b75b42; color: #fff7ef; padding: 12px 14px; border-radius: 14px; font-size: 13px; }
   .journeyChapter { position: absolute; left: 16px; right: 16px; padding: 9px 14px; background: #fff7ef; color: #876651; border-radius: 14px; font-size: 11px; font-weight: 900; letter-spacing: .5px; }
   #bottomNav { height: calc(var(--nav-height,64px) + var(--safe-b)); }
-  .navItem { min-height: var(--touch-size,44px); justify-content: center; }
+  .navItem { width: max(64px,var(--touch-size,44px)); min-height: var(--touch-size,44px); justify-content: center; }
+  .navHomeBtn { width: max(56px,var(--touch-size,44px)); height: max(56px,var(--touch-size,44px)); }
+  #playBtn { min-height: var(--touch-size,44px); justify-content: center; }
   @media(prefers-reduced-motion:reduce) { .menuFloaters img,.levelNodeInner,.levelMascotMarker { animation: none !important; } }
 
   #powerPanel { left: 8px; right: 8px; bottom: var(--safe-b); grid-template-columns: repeat(5,var(--touch-size,44px)); justify-content: center; gap: 3px; padding: 2px; background: #fff7ef; border: 0; border-radius: 14px; box-shadow: 0 -2px 10px rgba(74,43,26,.12); }
@@ -811,11 +807,12 @@
   .powerBtn img { max-width: 38px; max-height: 38px; }
   .powerBtn small { bottom: 2px; right: 2px; color: #50321f; background: #fff7ef; border: 0; padding: 1px 4px; }
   .powerBtn.armed { background: #ffe1b0; border-color: #b75b42; box-shadow: inset 0 0 0 2px #b75b42; }
-  #bobaMascot { bottom: calc(64px + var(--safe-b)); }
+  #bobaMascot { top: 707px; bottom: auto; }
   #portraitPrompt { position: fixed; inset: 0; z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: max(20px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left)); background: #fff7ef; color: #50321f; text-align: center; }
   #portraitPrompt img { width: 66px; height: 66px; object-fit: contain; }
   #portraitPrompt h2 { font: 700 26px 'Fredoka',sans-serif; margin: 0; }
   #portraitPrompt p { font-size: 17px; line-height: 1.5; margin: 0; }
+  #gameExitLoading { position: fixed; inset: 0; z-index: 99; display: none; align-items: center; justify-content: center; background: #fff7ef; color: #50321f; font-size: 20px; }
 </style>
 </head>
 <body>
@@ -1044,6 +1041,7 @@
     </div>
   </div>
 </div>
+<div id="gameExitLoading" role="status" aria-live="polite"><p>One moment…</p></div>
 <div id="portraitPrompt" role="status" aria-live="polite"><img src="icons/fall-cup1.png" alt=""><h2>Turn for a better sip</h2><p>Rotate your phone to portrait to play.<br>Your game will wait right here.</p></div>
 
 <script>
@@ -1063,9 +1061,10 @@
 })();
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const W = 390, H = 844;
+const gameContext = ctx;
+const W = 390, H = 928, PLAYFIELD_H = 844;
 // render at the device's real pixel density (capped - no point buffering past ~2.5x, and it
-// costs fill-rate on cheaper phones) instead of a flat 390x844 backing buffer stretched up by
+// costs fill-rate on cheaper phones) instead of a flat scene backing buffer stretched up by
 // the #wrap scale transform, which is what made every sprite/bubble look soft on hi-res phones.
 const DPR = Math.min(window.devicePixelRatio || 1, 2.5);
 canvas.width = W * DPR; canvas.height = H * DPR;
@@ -1085,6 +1084,14 @@ const COLORS = ['#FF6FA5', '#7CB342', '#C17F3E', '#FFB648', '#B28CFF']; // straw
 // The pose rig (which columns mean what) is shared by every row - only `row` differs per flavor.
 const pearlSprite = new Image();
 pearlSprite.src = 'pearl-sprites.png';
+const SINKER_SPRITES = { blue: new Image(), clear: new Image() };
+SINKER_SPRITES.blue.src = 'sinker-blue-sprites.png';
+SINKER_SPRITES.clear.src = 'sinker-clear-sprites.png';
+const SINKER_ANIMATION = [0, 1, 0, 2, 3, 4, 5, 4];
+function sinkerFrame(seed, damaged = false, worried = false) {
+  if (damaged || worried) return 6;
+  return SINKER_ANIMATION[Math.floor(timeNow * 4 + seed * 13) % SINKER_ANIMATION.length];
+}
 const PEARL_CARD_W = 0, PEARL_CELL_W = 1125 / 20, PEARL_CELL_H = 563 / 7;
 // The sheet's grid is NOT perfectly uniform (it reads as AI-generated art, not a hand-cut atlas):
 // column pitch drifts from ~60px down to ~50px across the row, each row's own face art overflows
@@ -1156,6 +1163,7 @@ const BUBBLE_ALPHA = 0.8;
 let keyLeft = false, keyRight = false;
 const ROT_SPEED = 2.4;
 const LAUNCHER_SCALE = 1.8;
+const LAUNCHER_TUBE_UNITS = 1.93;
 let launcherRecoilAt = -10;
 // power-up activation feedback: a bright flash that settles into a colored glow around the
 // straw, so using a power-up reads as "something just happened to my straw" rather than just
@@ -1178,8 +1186,8 @@ function maybeSpecialExtras() {
   return {};
 }
 
-// --- Frozen Sinker: a tea-leaf-clump obstacle that needs 2 adjacent pops to clear, like ice,
-// but unlike ice it doesn't turn back into a normal matchable bubble - the 2nd hit just drops
+// --- Frozen Sinker: an obstacle cleared by two adjacent popped pearls, like ice,
+// but unlike ice it does not thaw into a matchable pearl: the second damage hit drops
 // it outright. Always placed in pre-grouped clusters of 2-4 adjacent cells (never scattered
 // single cells) specifically so a player can take out a whole clump with one well-aimed combo,
 // rather than needing to individually hunt down isolated unlucky cells one at a time.
@@ -1209,7 +1217,11 @@ function placeSinkerCluster(rowIndices) {
     seen.add(`${pick[0]},${pick[1]}`);
     group.push(pick);
   }
-  for (const [r, c] of group) grid[r][c].sinker = SINKER_START;
+  const variant = ['slate', 'blue', 'clear'][Math.floor(Math.random() * 3)];
+  for (const [r, c] of group) {
+    grid[r][c].sinker = SINKER_START;
+    grid[r][c].sinkerVariant = variant;
+  }
 }
 
 // --- shot streak: consecutive successful shots (no miss), independent of the per-shot comboChain ---
@@ -1268,9 +1280,7 @@ function applyEndlessDifficulty() {
 let pausedFromState = 'playing';
 
 let shooterX = W / 2;
-let shooterY = H - 90; // was H-50: raised to give the (now less-cropped) boba mascot room to
-                        // show his full face/straw above the screen's bottom edge; shrinks the
-                        // playfield above KILL_LINE_Y slightly, which is an acceptable tradeoff
+let shooterY = PLAYFIELD_H - 90; // Keep the original playfield independently of bottom chrome.
 const KILL_LINE_Y = shooterY - RADIUS * 3.6;
 
 function rowOffset(r) { return (r % 2 === 1) ? RADIUS : 0; }
@@ -1433,14 +1443,74 @@ async function initAdsIfAvailable() {
 // purchase later is a one-line change, not a hunt through every ad call site.
 let removeAdsPurchased = false;
 try { removeAdsPurchased = localStorage.getItem('bubbleBlastRemoveAds') === '1'; } catch (e) {}
+let endGameTransitionPending = false, rewardedAdPending = false;
+const INTERSTITIAL_PREPARE_TIMEOUT_MS = 8000;
 async function showInterstitialAfterGame() {
-  if (removeAdsPurchased || !admobAvailable()) return;
+  const cap = window.Capacitor;
+  if (removeAdsPurchased || !admobAvailable() || (cap.isNativePlatform && !cap.isNativePlatform())) return;
+  const plugin = cap.Plugins.AdMob;
+  const handles = [];
+  let cancelled = false, presented = false, showing = false, finished = false;
+  let complete;
+  const terminal = new Promise(resolve => { complete = resolve; });
+  const finish = () => { if (!finished) { finished = true; complete(); } };
+  const bounded = async promise => {
+    let timer;
+    try {
+      return await Promise.race([promise, new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Interstitial preparation timed out')), INTERSTITIAL_PREPARE_TIMEOUT_MS);
+      })]);
+    } finally { clearTimeout(timer); }
+  };
+  const listen = async (name, fn) => {
+    const registration = Promise.resolve(plugin.addListener(name, fn)).then(handle => {
+      if (cancelled) { Promise.resolve(handle.remove()).catch(() => {}); }
+      else handles.push(handle);
+      return handle;
+    });
+    await bounded(registration);
+  };
   try {
-    const AdMobPlugin = window.Capacitor.Plugins.AdMob;
-    await AdMobPlugin.prepareInterstitial({ adId: ADMOB_INTERSTITIAL_TEST_ID, isTesting: true });
-    await AdMobPlugin.showInterstitial();
+    // Android's showInterstitial promise resolves immediately after show(), not
+    // dismissal. Install terminal listeners before native presentation can start.
+    await listen('interstitialAdDismissed', () => { if (showing) finish(); });
+    await listen('interstitialAdFailedToShow', () => { if (showing && !presented) finish(); });
+    await listen('interstitialAdShowed', () => { if (showing) presented = true; });
+    await bounded(Promise.resolve(plugin.prepareInterstitial({ adId: ADMOB_INTERSTITIAL_TEST_ID, isTesting: true })));
+    if (cancelled || removeAdsPurchased) return;
+    showing = true;
+    // Once native show is invoked, only dismissal/failure can release the lock.
+    // A timer here could let a delayed native ad appear over the next game.
+    try {
+      Promise.resolve(plugin.showInterstitial()).catch(() => { if (!presented) finish(); });
+    } catch (e) { if (!presented) finish(); }
+    await terminal;
   } catch (e) {
-    // no fill / native hiccup - never block the result screen over an ad that didn't show
+    // No fill, unsupported bridge, or preparation timeout: proceed without an ad.
+    // A timed-out prepare has no continuation that can later invoke show().
+  } finally {
+    cancelled = true;
+    for (const handle of handles) {
+      try { Promise.resolve(handle.remove()).catch(() => {}); } catch (e) {}
+    }
+  }
+}
+async function exitCompletedGame(next) {
+  if (endGameTransitionPending || rewardedAdPending) return;
+  endGameTransitionPending = true;
+  appState = 'transition';
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('leaderboardOverlay').style.display = 'none';
+  stopOverlayAnim();
+  const loading = document.getElementById('gameExitLoading');
+  loading.style.display = 'flex';
+  document.getElementById('wrap').inert = true;
+  try { await showInterstitialAfterGame(); }
+  finally {
+    endGameTransitionPending = false;
+    loading.style.display = 'none';
+    document.getElementById('wrap').inert = window.innerWidth > window.innerHeight && window.innerHeight < 600;
+    next();
   }
 }
 function showFakeRewardedAd(onComplete) {
@@ -1460,21 +1530,74 @@ function showFakeRewardedAd(onComplete) {
     }
   }, 1000);
 }
-async function showRewardedAd(onComplete) {
-  document.getElementById('overlay').style.display = 'none';
-  if (admobAvailable()) {
+async function nativeRewardedOutcome(plugin) {
+  const handles = [];
+  let cancelled = false, showing = false, presented = false, earned = false, finished = false;
+  let resolveTerminal;
+  const terminal = new Promise(resolve => { resolveTerminal = resolve; });
+  const finish = failed => {
+    if (finished) return;
+    finished = true;
+    resolveTerminal({ earned, failed });
+  };
+  const bounded = async promise => {
+    let timer;
     try {
-      const AdMobPlugin = window.Capacitor.Plugins.AdMob;
-      await AdMobPlugin.prepareRewardVideoAd({ adId: ADMOB_REWARDED_TEST_ID, isTesting: true });
-      await AdMobPlugin.showRewardVideoAd();
-      onComplete();
-      return;
-    } catch (e) {
-      // no fill / native SDK hiccup - fall through to the fake placeholder so the player's
-      // "watch ad" tap still does something rather than silently failing
+      return await Promise.race([promise, new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Rewarded preparation timed out')), INTERSTITIAL_PREPARE_TIMEOUT_MS);
+      })]);
+    } finally { clearTimeout(timer); }
+  };
+  const listen = async (name, fn) => {
+    await bounded(Promise.resolve(plugin.addListener(name, fn)).then(handle => {
+      if (cancelled) { Promise.resolve(handle.remove()).catch(() => {}); }
+      else handles.push(handle);
+    }));
+  };
+  try {
+    await listen('onRewardedVideoAdReward', () => { if (showing && !finished) earned = true; });
+    await listen('onRewardedVideoAdDismissed', () => { if (showing) finish(false); });
+    await listen('onRewardedVideoAdFailedToShow', () => { if (showing && !presented) finish(true); });
+    await listen('onRewardedVideoAdShowed', () => { if (showing) presented = true; });
+    await bounded(Promise.resolve(plugin.prepareRewardVideoAd({ adId: ADMOB_REWARDED_TEST_ID, isTesting: true })));
+    showing = true;
+    // The Android show promise reports reward-earned, not dismissal. Only the
+    // terminal native callback can safely unlock the result screen/gameplay.
+    try {
+      Promise.resolve(plugin.showRewardVideoAd()).catch(() => { if (!presented) finish(true); });
+    } catch (e) { if (!presented) finish(true); }
+    return await terminal;
+  } catch (e) { return { earned: false, failed: true }; }
+  finally {
+    cancelled = true;
+    for (const handle of handles) {
+      try { Promise.resolve(handle.remove()).catch(() => {}); } catch (e) {}
     }
   }
-  showFakeRewardedAd(onComplete);
+}
+async function showRewardedAd(onComplete) {
+  if (endGameTransitionPending || rewardedAdPending) return;
+  const overlay = document.getElementById('overlay');
+  const restoreResult = overlay.style.display !== 'none';
+  rewardedAdPending = true;
+  overlay.style.display = 'none';
+  document.getElementById('wrap').inert = true;
+  let earned = false;
+  try {
+    const cap = window.Capacitor;
+    if (admobAvailable() && (!cap.isNativePlatform || cap.isNativePlatform())) {
+      const outcome = await nativeRewardedOutcome(cap.Plugins.AdMob);
+      earned = outcome.earned;
+      if (outcome.failed) earned = await new Promise(resolve => showFakeRewardedAd(() => resolve(true)));
+    } else {
+      earned = await new Promise(resolve => showFakeRewardedAd(() => resolve(true)));
+    }
+  } finally {
+    rewardedAdPending = false;
+    document.getElementById('wrap').inert = window.innerWidth > window.innerHeight && window.innerHeight < 600;
+    if (earned) onComplete();
+    else if (restoreResult) overlay.style.display = 'flex';
+  }
 }
 
 function getLevelConfig(level) {
@@ -2019,8 +2142,9 @@ function starPath(c, rOuter, points, innerRatio) {
 }
 
 function drawBubble(x, y, color, opts = {}) {
+  const ctx = opts.context || gameContext;
   const { scale = 1, fuse, seed = 0, bornAt = null, bob = true, worried = false } = opts;
-  const r = RADIUS * scale;
+  const r = (opts.radius || RADIUS) * scale;
 
   let sx = 1 + Math.sin(timeNow * 2.4 + seed * 13) * 0.015;
   let sy = 1 + Math.cos(timeNow * 2.6 + seed * 13) * 0.015;
@@ -2049,6 +2173,24 @@ function drawBubble(x, y, color, opts = {}) {
   ctx.restore();
 
   ctx.scale(sx, sy);
+  const sinkerArt = SINKER_SPRITES[opts.sinkerVariant];
+  if (opts.sinker > 0 && sinkerArt && sinkerArt.naturalWidth) {
+    const frame = sinkerFrame(seed, opts.sinker < SINKER_START, worried);
+    const cellW = sinkerArt.naturalWidth / 4, cellH = sinkerArt.naturalHeight / 2;
+    const size = r * 2.2;
+    ctx.globalAlpha *= opts.sinkerVariant === 'clear' ? .82 : 1;
+    ctx.drawImage(sinkerArt, (frame % 4) * cellW, Math.floor(frame / 4) * cellH, cellW, cellH, -size / 2, -size / 2, size, size);
+    ctx.globalAlpha = 1;
+    // The small one-hit marker supplements the worried pose for a clear damage cue.
+    if (opts.sinker < SINKER_START) {
+      ctx.fillStyle = '#fff7ef'; ctx.strokeStyle = '#547c93'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(r * .65, r * .6, r * .29, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#32556c'; ctx.font = `900 ${r * .4}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('1', r * .65, r * .6);
+    }
+    ctx.restore();
+    return;
+  }
 
   // rainbow renders as a normal round pearl (not the star specials use) - a glossy ball that
   // continuously breathes through hues, each one phase-offset by its own seed so a handful on
@@ -2136,7 +2278,7 @@ function drawBubble(x, y, color, opts = {}) {
       const sx = Math.max(0, Math.min(PEARL_COL_CENTER[pick] - PEARL_COL_HALFW[pick], PEARL_CARD_W + 20 * PEARL_CELL_W - cropW));
       const sy = face.top;
       // the sprite cell is a full-bleed, transparent-background character blob - drawn as-is,
-      // no clip/outline/fill behind it, so it reads as the actual sinker and not a face-on-a-ball.
+      // no clip/outline/fill behind it, so it preserves the original pearl character silhouette.
       // crop geometry is per-column/per-row calibrated (see PEARL_COL_*/PEARL_ROW_FACE above) to
       // hug just this pose's own art, so neighboring poses' faces/decorations and the label chip
       // text never make it into the drawn sinker.
@@ -2434,7 +2576,7 @@ function dropFloatingClusters() {
   for (let r = 0; r < grid.length; r++) {
     for (let c = 0; c < colsInRow(r); c++) {
       if (grid[r][c] && !connected.has(`${r},${c}`)) {
-        fallingBubbles.push({ x: cellX(r,c), y: cellY(r), vy: 1, vx: (Math.random()-0.5)*2, color: grid[r][c].color, seed: grid[r][c].seed, rot: 0 });
+        fallingBubbles.push({ x: cellX(r,c), y: cellY(r), vy: 1, vx: (Math.random()-0.5)*2, color: grid[r][c].color, seed: grid[r][c].seed, sinker: grid[r][c].sinker, sinkerVariant: grid[r][c].sinkerVariant, rot: 0 });
         grid[r][c] = null; dropped++;
       }
     }
@@ -2578,7 +2720,6 @@ function checkKillLine() {
 
 function winLevel() {
   gameOver = true;
-  showInterstitialAfterGame();
   playWinJingle();
   setBobaMood('cool');
   const frac = levelConfig.timeLimit > 0 ? levelTimeLeft / levelConfig.timeLimit : 0;
@@ -2599,17 +2740,20 @@ function winLevel() {
   renderEcoPills();
   let adUsed = false;
   showOverlay('Level Complete!', `Score: ${score}`, 'Next Level', () => startLevel(currentLevel + 1), 'Map', showMap, {
-    stars, isNewBest, pearls: pearlsEarned, bobaMood: 'cool', bobaAnim: ['cool', 'wink', 'laugh', 'wink'],
+    completedGame: true, stars, isNewBest, pearls: pearlsEarned, bobaMood: 'cool', bobaAnim: ['cool', 'wink', 'laugh', 'wink'],
     badge: cameCloseToKillLine ? '😅 CLUTCH SAVE! +25' : null,
-    adBtn: { label: '📺 Watch Ad · Double Pearls', onClick: () => {
+    adBtn: { label: '📺 Watch Ad · Double Pearls', onClick: async () => {
       if (adUsed) return;
       adUsed = true;
-      showRewardedAd(() => {
+      let granted = false;
+      await showRewardedAd(() => {
+        granted = true;
         addPearls(pearlsEarned);
         renderEcoPills();
         document.getElementById('overlay').style.display = 'flex';
         document.getElementById('overlayAdBtn').style.display = 'none';
       });
+      if (!granted) adUsed = false;
     } }
   });
 }
@@ -2620,6 +2764,7 @@ function countBubbles() {
 }
 const CONTINUE_COST = 50;
 function grantContinue() {
+  if (endGameTransitionPending || rewardedAdPending) return;
   gameOver = false;
   levelTimeLeft += 20;
   for (let r = grid.length - 1; r >= 0; r--) {
@@ -2636,11 +2781,12 @@ function grantContinue() {
   renderEcoPills();
 }
 function giveUpLevel() {
-  spendLife();
-  renderEcoPills();
-  document.getElementById('overlay').style.display = 'none';
-  showInterstitialAfterGame();
-  showMap();
+  if (!gameOver || appState !== 'playing' || endGameTransitionPending || rewardedAdPending) return;
+  return exitCompletedGame(() => {
+    spendLife();
+    renderEcoPills();
+    showMap();
+  });
 }
 function failLevel(reason) {
   gameOver = true;
@@ -2670,11 +2816,21 @@ function showOverlay(title, sub, primaryLabel, primaryFn, secondaryLabel, second
   document.getElementById('overlaySub').textContent = sub;
   const pBtn = document.getElementById('overlayPrimaryBtn');
   const sBtn = document.getElementById('overlaySecondaryBtn');
-  pBtn.textContent = primaryLabel; pBtn.onclick = primaryFn;
+  let exitUsed = false;
+  const resultExit = fn => () => {
+    if (exitUsed || endGameTransitionPending || rewardedAdPending) return;
+    exitUsed = true;
+    return exitCompletedGame(fn);
+  };
+  const guardedAction = fn => () => {
+    if (endGameTransitionPending || rewardedAdPending) return;
+    return fn();
+  };
+  pBtn.textContent = primaryLabel; pBtn.onclick = opts.completedGame ? resultExit(primaryFn) : guardedAction(primaryFn);
   pBtn.classList.toggle('disabled', !!opts.primaryDisabled);
   if (secondaryLabel) {
     sBtn.style.display = '';
-    sBtn.textContent = secondaryLabel; sBtn.onclick = secondaryFn;
+    sBtn.textContent = secondaryLabel; sBtn.onclick = opts.completedGame ? resultExit(secondaryFn) : guardedAction(secondaryFn);
   } else {
     sBtn.style.display = 'none';
   }
@@ -2714,7 +2870,7 @@ function showOverlay(title, sub, primaryLabel, primaryFn, secondaryLabel, second
   if (opts.adBtn) {
     adBtn.style.display = 'block';
     adBtn.textContent = opts.adBtn.label;
-    adBtn.onclick = opts.adBtn.onClick;
+    adBtn.onclick = guardedAction(opts.adBtn.onClick);
   } else {
     adBtn.style.display = 'none';
   }
@@ -2723,7 +2879,11 @@ function showOverlay(title, sub, primaryLabel, primaryFn, secondaryLabel, second
   if (opts.ghostBtn) {
     ghostBtn.style.display = 'block';
     ghostBtn.textContent = opts.ghostBtn.label;
-    ghostBtn.onclick = opts.ghostBtn.onClick;
+    ghostBtn.onclick = () => {
+      if (endGameTransitionPending || rewardedAdPending || exitUsed) return;
+      exitUsed = true;
+      return opts.ghostBtn.onClick();
+    };
   } else {
     ghostBtn.style.display = 'none';
   }
@@ -2731,7 +2891,7 @@ function showOverlay(title, sub, primaryLabel, primaryFn, secondaryLabel, second
   const lbBtn = document.getElementById('overlayLeaderboardBtn');
   if (opts.leaderboardBtn) {
     lbBtn.style.display = 'block';
-    lbBtn.onclick = openLeaderboard;
+    lbBtn.onclick = guardedAction(openLeaderboard);
   } else {
     lbBtn.style.display = 'none';
   }
@@ -3043,6 +3203,7 @@ function showSettings() {
   setNavActive(null);
 }
 function showShop() {
+  if (endGameTransitionPending || rewardedAdPending) return;
   playMenuBgm();
   appState = 'shop';
   setGameVisible(false);
@@ -3229,11 +3390,11 @@ function draw() {
   for (let r = 0; r < grid.length; r++)
     for (let c = 0; c < colsInRow(r); c++) {
       const cell = grid[r][c];
-      if (cell) drawBubble(cellX(r, c), cellY(r), cell.color, { fuse: cell.fuse, seed: cell.seed, bornAt: cell.bornAt, worried: cell.worriedUntil && cell.worriedUntil > timeNow, chainBoba: cell.chainBoba, goldenPearl: cell.goldenPearl, ice: cell.ice, sinker: cell.sinker });
+      if (cell) drawBubble(cellX(r, c), cellY(r), cell.color, { fuse: cell.fuse, seed: cell.seed, bornAt: cell.bornAt, worried: cell.worriedUntil && cell.worriedUntil > timeNow, chainBoba: cell.chainBoba, goldenPearl: cell.goldenPearl, ice: cell.ice, sinker: cell.sinker, sinkerVariant: cell.sinkerVariant });
     }
 
   for (const b of fallingBubbles) {
-    drawBubble(b.x, b.y, b.color, { scale: Math.max(0.6, 1 - b.rot*0.05), seed: b.seed, bob: false });
+    drawBubble(b.x, b.y, b.color, { scale: Math.max(0.6, 1 - b.rot*0.05), seed: b.seed, bob: false, sinker: b.sinker, sinkerVariant: b.sinkerVariant });
   }
 
   for (const p of powerPickups) {
@@ -3317,7 +3478,7 @@ function draw() {
   // not just sitting on top - width is matched to the pearls' own on-screen size (see below)
   const PEARL_IN_STRAW_SCALE = 1 / LAUNCHER_SCALE;
   const TUBE_HALF_W = RADIUS * PEARL_IN_STRAW_SCALE * 1.08;
-  const TUBE_TOP = -RADIUS * 2.05, TUBE_BASE = 0;
+  const TUBE_TOP = -RADIUS * LAUNCHER_TUBE_UNITS, TUBE_BASE = 0;
   const tubePath = () => { ctx.beginPath(); ctx.roundRect(-TUBE_HALF_W, TUBE_TOP, TUBE_HALF_W * 2, TUBE_BASE - TUBE_TOP, TUBE_HALF_W * 0.12); };
 
   // next pearl sits lower in the tube (near the cup), current pearl near the open tip -
@@ -3575,6 +3736,7 @@ function maybeShowTutorial() {
 }
 
 function showMenu() {
+  if (endGameTransitionPending || rewardedAdPending) return;
   playMenuBgm();
   appState = 'menu';
   setGameVisible(false);
@@ -3764,6 +3926,7 @@ function buildGalaxyMap() {
 }
 
 function showMap() {
+  if (endGameTransitionPending || rewardedAdPending) return;
   playMenuBgm();
   appState = 'map';
   setGameVisible(false);
@@ -3801,17 +3964,24 @@ function closePause() {
   document.getElementById('pauseOverlay').style.display = 'none';
 }
 function restartFromPause() {
+  if (appState !== 'paused' || endGameTransitionPending || rewardedAdPending) return;
+  const mode = pausedFromState, lvl = currentLevel;
   document.getElementById('pauseOverlay').style.display = 'none';
-  if (pausedFromState === 'endless') { startEndless(); return; }
-  const lvl = currentLevel;
-  spendLife(); renderEcoPills();
-  startLevel(lvl);
+  return exitCompletedGame(() => {
+    if (mode === 'endless') { startEndless(); return; }
+    spendLife(); renderEcoPills();
+    startLevel(lvl);
+  });
 }
 function quitFromPause() {
+  if (appState !== 'paused' || endGameTransitionPending || rewardedAdPending) return;
+  const mode = pausedFromState;
   document.getElementById('pauseOverlay').style.display = 'none';
-  if (pausedFromState === 'endless') { showMenu(); return; }
-  spendLife(); renderEcoPills();
-  showMap();
+  return exitCompletedGame(() => {
+    if (mode === 'endless') { showMenu(); return; }
+    spendLife(); renderEcoPills();
+    showMap();
+  });
 }
 function renderPauseToggles() {
   document.getElementById('pauseMusicBtn').classList.toggle('on', !bgmMuted);
@@ -3907,10 +4077,13 @@ const HOWTO_POWER_DESCS = {
   [SWAP]: 'Swaps your current pearl with the next one up.'
 };
 const HOWTO_SPECIALS = [
-  { icon: '⚡', name: 'Chain Boba', blurb: "Pops in a small chain reaction when cleared - don't stand too close!" },
-  { icon: '⭐', name: 'Golden Pearl', blurb: 'A lucky pearl - pop it for bonus pearls.' },
-  { icon: '🧊', name: 'Ice Cube', blurb: 'Frozen solid - pop bubbles next to it to melt it free.' },
-  { icon: '⚓', name: 'Frozen Sinker', blurb: 'A clumped-up clump - hit it twice (from any angle) to drop it.' }
+  { color: '#FF6FA5', opts: { chainBoba: true }, name: 'Chain Boba', blurb: 'Clearing it triggers a small chain reaction.' },
+  { color: '#FFB648', opts: { goldenPearl: true }, name: 'Golden Pearl', blurb: 'Pop this lucky pearl for bonus pearls.' },
+  { color: '#FF6FA5', opts: { ice: 2 }, name: 'Ice Cube', blurb: 'Pop adjacent pearls to thaw its two layers, then match the pearl inside.' },
+  { color: '#C17F3E', opts: { sinker: 2, sinkerVariant: 'slate' }, name: 'Frozen Sinker', blurb: 'Pop adjacent pearls to clear two hits and drop this clump. Direct shots do not damage it.' },
+  { img: 'sinker-blue.png', name: 'Blue Frozen Sinker', blurb: 'Two adjacent popped pearls clear this clump. A single combo can do both hits; direct shots do not damage it.' },
+  { img: 'sinker-clear.png', transparent: true, name: 'Clear Frozen Sinker', blurb: 'The same two-hit obstacle in a glassy form. Pop neighboring pearls to drop it; direct shots do not damage it.' },
+  { color: STONE, name: 'Stone', blurb: 'Cannot be matched directly. Clear the pearls supporting it to make it fall.' }
 ];
 const HOWTO_PEARLS = [
   { color: '#C17F3E', name: 'Pearl Boba', blurb: 'The chill one. Never rattled, always steady.' },
@@ -3919,6 +4092,21 @@ const HOWTO_PEARLS = [
   { color: '#FFB648', name: 'Orange Boba', blurb: 'The anxious one - holds his breath near the danger line.' },
   { color: '#B28CFF', name: 'Purple Boba', blurb: 'Royalty vibes. Dreamy, a bit extra, always sparkling.' }
 ];
+const howToArtCache = new Map();
+function howToBubbleArt(color, opts = {}) {
+  const key = color + JSON.stringify(opts);
+  if (!howToArtCache.has(key)) {
+    const preview = document.createElement('canvas');
+    preview.width = preview.height = 84;
+    drawBubble(42, 42, color, Object.assign({ context: preview.getContext('2d'), radius: 28, bob: false, seed: 0 }, opts));
+    howToArtCache.set(key, preview.toDataURL('image/png'));
+  }
+  return `<img src="${howToArtCache.get(key)}" alt="">`;
+}
+pearlSprite.addEventListener('load', () => {
+  howToArtCache.clear();
+  if (document.getElementById('howToOverlay').style.display !== 'none') renderHowTo();
+});
 function howToRow(iconHtml, name, blurb) {
   return `<div class="howToRow"><span class="howToIcon">${iconHtml}</span>
     <span class="howToText"><span class="howToName">${name}</span><span class="howToDesc">${blurb}</span></span></div>`;
@@ -3929,9 +4117,9 @@ function renderHowTo() {
     '<div class="howToSectionTitle">Power-Ups</div>' +
     POWER_DEFS.map(d => howToRow(`<img src="${d.img}" alt="">`, d.name, HOWTO_POWER_DESCS[d.key] || '')).join('') +
     '<div class="howToSectionTitle">Specials You\'ll See</div>' +
-    HOWTO_SPECIALS.map(s => howToRow(s.icon, s.name, s.blurb)).join('') +
+    HOWTO_SPECIALS.map(s => howToRow(s.img ? `<img src="${s.img}" alt=""${s.transparent ? ' style="opacity:.82"' : ''}>` : howToBubbleArt(s.color, s.opts), s.name, s.blurb)).join('') +
     '<div class="howToSectionTitle">Meet the Pearls</div>' +
-    HOWTO_PEARLS.map(p => howToRow(`<span style="display:block;width:100%;height:100%;border-radius:50%;background:${p.color};"></span>`, p.name, p.blurb)).join('');
+    HOWTO_PEARLS.map(p => howToRow(howToBubbleArt(p.color), p.name, p.blurb)).join('');
 }
 function openHowTo() {
   renderHowTo();
@@ -4078,6 +4266,7 @@ function resetRuntimeState() {
 }
 
 function startLevel(level) {
+  if (endGameTransitionPending || rewardedAdPending) return;
   currentLevel = level;
   playGameplayBgm();
   currentWorldColor = themeForWorld(Math.floor((level - 1) / LEVELS_PER_WORLD)).color;
@@ -4100,6 +4289,7 @@ function startLevel(level) {
 }
 
 function startEndless() {
+  if (endGameTransitionPending || rewardedAdPending) return;
   endlessTrackIndex = Math.floor(Math.random() * gameplayTracks.length);
   currentWorldColor = WORLD_THEMES[0].color;
   levelConfig = Object.assign({ rows: 5, lineDrops: 0, timeLimit: 0 }, endlessDifficultyFor(0));
@@ -4128,7 +4318,6 @@ function endlessFinalScore() {
 
 function failEndless() {
   gameOver = true;
-  showInterstitialAfterGame();
   sfxFail();
   setBobaMood('crying');
   const finalScore = endlessFinalScore();
@@ -4139,7 +4328,7 @@ function failEndless() {
   lastEndlessScore = finalScore;
   submitOnlineScore(finalScore).catch(() => {});
   showOverlay('Run Over!', `Final Score: ${finalScore} · ${fmtTime(endlessElapsed)} survived`, 'Try Again', () => startEndless(), 'Menu', showMenu, {
-    badge: isNewLocalBest ? '🏆 NEW PERSONAL BEST!' : null,
+    completedGame: true, badge: isNewLocalBest ? '🏆 NEW PERSONAL BEST!' : null,
     leaderboardBtn: true,
     bobaMood: 'crying', bobaAnim: ['crying', 'sad']
   });
@@ -4314,7 +4503,7 @@ document.getElementById('onbSkipBtn').addEventListener('click', finishOnboarding
 document.getElementById('onbNextBtn').addEventListener('click', advanceOnboarding);
 document.getElementById('seeIntroBtn').addEventListener('click', () => showIntroVideo(() => {}));
 
-// --- mobile-responsive scaling: fixed 480x720 virtual resolution, scaled to fit any screen ---
+// --- Responsive scene scaling; the original playfield remains 390×844. ---
 const wrapEl = document.getElementById('wrap');
 let lastFitScale = 0;
 let orientationAutoPaused = false;
@@ -4322,7 +4511,7 @@ function fitToViewport() {
   const vw = window.innerWidth, vh = window.innerHeight;
   const landscape = vw > vh && vh < 600;
   document.getElementById('portraitPrompt').style.display = landscape ? 'flex' : 'none';
-  wrapEl.inert = landscape;
+  wrapEl.inert = landscape || endGameTransitionPending || rewardedAdPending;
   if (landscape && isGameplay() && !gameOver) {
     orientationAutoPaused = true;
     openPause();
@@ -4343,17 +4532,30 @@ function fitToViewport() {
   // Reserve the actual chrome height, including reported safe areas and small-screen
   // touch targets, before placing any board pearls. Geometry uses the same origin.
   const hudEl = document.getElementById('hud');
-  if (hudEl.offsetHeight) TOP_MARGIN = Math.max(170, hudEl.offsetTop + hudEl.offsetHeight + 36);
-  // The bottom toolbar follows the safe inset; keep the loaded pearl above it.
+  if (hudEl.offsetHeight) {
+    const streakEl = document.getElementById('streakLabel');
+    const streakStyle = getComputedStyle(streakEl);
+    // Reserve the badge even before its first streak. Explicit line height lets
+    // hidden and visible states use identical geometry, with room for pearl bobbing.
+    const streakHeight = Math.max(streakEl.offsetHeight,
+      parseFloat(streakStyle.lineHeight) + parseFloat(streakStyle.paddingTop) + parseFloat(streakStyle.paddingBottom));
+    const streakBottom = parseFloat(streakStyle.top) + streakHeight;
+    TOP_MARGIN = Math.max(170, hudEl.offsetTop + hudEl.offsetHeight + 36, streakBottom + 8);
+  }
+  // Keep the cup beneath the original danger line; fit its body above safe toolbar space.
   const toolbarInset = parseFloat(getComputedStyle(document.getElementById('powerPanel')).bottom) || 0;
-  // Lift the existing cup and its straw together above the bottom power row.
-  // The board's loss boundary remains unchanged; this is launcher placement only.
-  shooterY = H - 90 - toolbarInset - 52;
+  const mascot = document.getElementById('bobaMascot');
+  const mascotHeight = 137 - toolbarInset;
+  mascot.style.height = mascotHeight + 'px';
+  mascot.style.width = (220 * mascotHeight / 137) + 'px';
+  if (mascot.offsetWidth && bobaMood) renderMoodInto(mascot, bobaMood);
+  // The scene adds bottom chrome space while preserving original shooter/loss geometry.
+  shooterY = PLAYFIELD_H - 90;
   // Notched screens can consume both ends of the scene. Keep all twelve rows
   // and the same loss boundary, fitting pearl geometry into the remaining space.
   // A twelve-row board ends at TOP_MARGIN + (11 * 1.75 + 2) * radius;
-  // the straw starts at shooterY - 2.05 * LAUNCHER_SCALE * radius.
-  const boardAndStrawUnits = 11 * 1.75 + 2 + 2.05 * LAUNCHER_SCALE;
+  // the straw starts at shooterY - LAUNCHER_TUBE_UNITS * LAUNCHER_SCALE * radius.
+  const boardAndStrawUnits = 11 * 1.75 + 2 + LAUNCHER_TUBE_UNITS * LAUNCHER_SCALE;
   RADIUS = Math.max(8, Math.min(20, (shooterY - TOP_MARGIN - 10) / boardAndStrawUnits));
   DIAM = RADIUS * 2;
   ROW_H = RADIUS * 1.75;

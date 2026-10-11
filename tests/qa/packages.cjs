@@ -56,7 +56,10 @@ function archiveHashes(file, prefix) {
   }
   const packages = [];
   for (const [extension, prefix] of [['apk', 'assets/public/'], ['aab', 'base/assets/public/']]) {
-    const name = `Pop-A-Boba-Flavor-Journey-v1.3-code4-release.${extension}`;
+    const gradle = fs.readFileSync(path.join(root, 'android/app/build.gradle'), 'utf8');
+    const version = /versionName "([^"]+)"/.exec(gradle)[1];
+    const code = /versionCode (\d+)/.exec(gradle)[1];
+    const name = `Pop-A-Boba-Flavor-Journey-v${version}-code${code}-release.${extension}`;
     const file = path.join(root, 'builds', name);
     const packaged = await archiveHashes(file, prefix);
     const mismatches = [...production].filter(([name, hash]) => packaged.get(name) !== hash).map(([name]) => name);

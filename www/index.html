@@ -2798,6 +2798,29 @@ function finishRemoveAdsPurchase() {
   removeAdsPurchased = true;
   try { localStorage.setItem('bubbleBlastRemoveAds', '1'); } catch (e) {}
 }
+// WHY: purchaseProduct() resolving means Google Play already charged the user and recorded the
+// purchase - acknowledgePurchase()/consumePurchase() afterward are just finishing steps. If one of
+// those throws (e.g. a transient network blip right after a real charge), treating it the same as
+// a failed purchase is wrong on two counts: it tells the user something failed when they were
+// actually charged, and "try again" sends them straight into a second purchaseProduct() call for a
+// product Google Play now considers ITEM_ALREADY_OWNED - charged, told it failed, no way forward.
+// So below: the entitlement is granted the moment purchaseProduct() itself succeeds (never rolled
+// back by a later ack/consume failure), the finishing call gets a few quick retries for the common
+// transient case, and only if it still fails do we say so - honestly, without inviting a repurchase.
+async function acknowledgeWithRetries(Billing, purchaseToken, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    try { await Billing.acknowledgePurchase({ purchaseToken }); return true; }
+    catch (e) { if (i < attempts - 1) await new Promise(r => setTimeout(r, 400 * (i + 1))); }
+  }
+  return false;
+}
+async function consumeWithRetries(Billing, purchaseToken, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    try { await Billing.consumePurchase({ purchaseToken }); return true; }
+    catch (e) { if (i < attempts - 1) await new Promise(r => setTimeout(r, 400 * (i + 1))); }
+  }
+  return false;
+}
 async function buyRemoveAds() {
   if (removeAdsPurchased) {
     showOverlay('Remove Ads', 'You already own this - ads are off for good.', 'OK', showShop);
@@ -2808,26 +2831,33 @@ async function buyRemoveAds() {
     return;
   }
   showOverlay('Remove Ads', 'Talking to Google Play…', 'Please wait', () => {}, null, null, { primaryDisabled: true });
+  const Billing = window.Capacitor.Plugins.NativePurchases;
+  let transaction;
   try {
-    const Billing = window.Capacitor.Plugins.NativePurchases;
-    const transaction = await Billing.purchaseProduct({
+    transaction = await Billing.purchaseProduct({
       productIdentifier: REMOVE_ADS_PRODUCT_ID,
       productType: 'inapp',
       isConsumable: false,
       autoAcknowledgePurchases: false
     });
-    if (transaction && transaction.purchaseToken) {
-      // Non-consumable: acknowledge (never consume) - an unacknowledged Play Billing purchase is
-      // auto-refunded after 3 days, and consuming a non-consumable would let it be bought again.
-      await Billing.acknowledgePurchase({ purchaseToken: transaction.purchaseToken });
-    }
-    finishRemoveAdsPurchase();
-    buildShopCards();
-    showOverlay('Remove Ads', 'Ads removed - thanks for your support!', 'Nice', showShop);
   } catch (e) {
     const cancelled = /cancel/i.test((e && e.message) || '');
     showOverlay(cancelled ? 'Remove Ads' : 'Purchase failed', cancelled ? 'Purchase cancelled.' : 'Something went wrong completing that purchase. Please try again.', 'OK', showShop);
+    return;
   }
+  // Purchase itself succeeded - grant it now, independent of whether acknowledge below succeeds.
+  finishRemoveAdsPurchase();
+  buildShopCards();
+  if (transaction && transaction.purchaseToken) {
+    // Non-consumable: acknowledge (never consume) - an unacknowledged Play Billing purchase is
+    // auto-refunded after 3 days, and consuming a non-consumable would let it be bought again.
+    const acked = await acknowledgeWithRetries(Billing, transaction.purchaseToken);
+    if (!acked) {
+      showOverlay('Remove Ads', "Your purchase went through and ads are removed, but we couldn't confirm it with Google Play. If anything looks off later, tap Restore Purchases in Settings.", 'OK', showShop);
+      return;
+    }
+  }
+  showOverlay('Remove Ads', 'Ads removed - thanks for your support!', 'Nice', showShop);
 }
 async function buyCoinsTopUp() {
   if (!billingAvailable()) {
@@ -2835,26 +2865,33 @@ async function buyCoinsTopUp() {
     return;
   }
   showOverlay('250 Coins', 'Talking to Google Play…', 'Please wait', () => {}, null, null, { primaryDisabled: true });
+  const Billing = window.Capacitor.Plugins.NativePurchases;
+  let transaction;
   try {
-    const Billing = window.Capacitor.Plugins.NativePurchases;
-    const transaction = await Billing.purchaseProduct({
+    transaction = await Billing.purchaseProduct({
       productIdentifier: COIN_TOPUP_PRODUCT_ID,
       productType: 'inapp',
       isConsumable: true,
       autoAcknowledgePurchases: false
     });
     if (!transaction || !transaction.purchaseToken) throw new Error('Purchase did not return a purchase token');
-    // Consumable: consume (acknowledges + clears ownership in one native call) so the coins can be
-    // bought again right away - contrast with Remove Ads' acknowledgePurchase above, which never
-    // consumes since that would let a one-time purchase be rebought.
-    await Billing.consumePurchase({ purchaseToken: transaction.purchaseToken });
-    addCoins(250);
-    renderEcoPills();
-    showOverlay('250 Coins', '+250 coins added to your wallet!', 'Nice', showShop);
   } catch (e) {
     const cancelled = /cancel/i.test((e && e.message) || '');
     showOverlay(cancelled ? '250 Coins' : 'Purchase failed', cancelled ? 'Purchase cancelled.' : 'Something went wrong completing that purchase. Please try again.', 'OK', showShop);
+    return;
   }
+  // Purchase itself succeeded - grant the coins now, independent of whether consume below succeeds.
+  addCoins(250);
+  renderEcoPills();
+  // Consumable: consume (acknowledges + clears ownership in one native call) so the coins can be
+  // bought again right away - contrast with Remove Ads' acknowledgePurchase above, which never
+  // consumes since that would let a one-time purchase be rebought.
+  const consumed = await consumeWithRetries(Billing, transaction.purchaseToken);
+  if (!consumed) {
+    showOverlay('250 Coins', "Your 250 coins were added! We're still finishing up with Google Play in the background - if Top Up Coins seems unavailable for a bit, give it a few minutes before trying again.", 'OK', showShop);
+    return;
+  }
+  showOverlay('250 Coins', '+250 coins added to your wallet!', 'Nice', showShop);
 }
 // Re-derives removeAdsPurchased from Google Play directly, rather than trusting only the local
 // flag - covers reinstalls, cleared app data, and a second device signed into the same account.

@@ -2872,10 +2872,20 @@ function renderSettingsToggles() {
              <div class="signInG">✓</div>
              <div class="signInText"><div class="signInTitle">Signed in</div><div class="signInSub">${escapeHtml(playGamesPlayerName || 'Play Games player')}</div></div>
            </div>`
-        : `<button class="signInCard" id="signInPlayGamesBtn">
-             <div class="signInG">🎮</div>
-             <div class="signInText"><div class="signInTitle">Sign in with Play Games</div><div class="signInSub">Back up your progress &amp; join the leaderboard</div></div>
-           </button>`)
+        : playGamesSignInPending
+          ? `<div class="signInCard" style="opacity:.75; cursor:default;">
+               <div class="signInG">⏳</div>
+               <div class="signInText"><div class="signInTitle">Signing in…</div><div class="signInSub">Contacting Play Games</div></div>
+             </div>`
+          : playGamesSignInFailed
+            ? `<button class="signInCard" id="signInPlayGamesBtn">
+                 <div class="signInG">⚠️</div>
+                 <div class="signInText"><div class="signInTitle">Couldn't sign in</div><div class="signInSub">Tap to retry</div></div>
+               </button>`
+            : `<button class="signInCard" id="signInPlayGamesBtn">
+                 <div class="signInG">🎮</div>
+                 <div class="signInText"><div class="signInTitle">Sign in with Play Games</div><div class="signInSub">Back up your progress &amp; join the leaderboard</div></div>
+               </button>`)
     // always show *something* here rather than silently disappearing - if this shows up on a
     // real device it means playGamesAvailable() returned false (Capacitor bridge/plugin not
     // detected), which is the actual diagnostic signal we need
@@ -2916,6 +2926,11 @@ function renderSettingsToggles() {
 const PLAY_GAMES_LEADERBOARD_ID = 'CgkI4-uLxr8UEAIQAQ';
 let playGamesSignedIn = false;
 let playGamesPlayerName = null;
+// transient UI-only state for the interactive "Sign in with Play Games" button - never touched
+// by the silent/background paths (initPlayGamesIfAvailable, the resume re-check, the
+// signInStateChanged listener), only by the user tapping the button themselves
+let playGamesSignInPending = false;
+let playGamesSignInFailed = false;
 function playGamesAvailable() {
   try {
     return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PlayGames);
@@ -2925,9 +2940,16 @@ function onPlayGamesSignInResult(result) {
   playGamesSignedIn = !!(result && result.signedIn);
   playGamesPlayerName = (result && result.player && result.player.displayName) || null;
   if (playGamesPlayerName) setPlayerName(playGamesPlayerName.slice(0, 16));
+  playGamesSignInPending = false;
+  playGamesSignInFailed = false;
   renderSettingsToggles();
   if (lastEndlessScore > 0) submitOnlineScore(lastEndlessScore).catch(() => {});
 }
+// re-syncs playGamesSignedIn/playGamesPlayerName against the real Play Games state - used on
+// Settings open and on app resume, so a system-wide sign-out while backgrounded (or any other
+// drift) is never shown as stale 'signed in'. A thrown/rejected isSignedIn() or getPlayer()
+// (per definitions.d.ts: getPlayer() rejects when no player is signed in) always resolves to
+// signedIn:false here rather than leaving the previous value in place.
 async function refreshPlayGamesState() {
   if (!playGamesAvailable()) return;
   try {
@@ -2936,17 +2958,26 @@ async function refreshPlayGamesState() {
     if (signedIn) {
       const player = await window.Capacitor.Plugins.PlayGames.getPlayer();
       playGamesPlayerName = player.displayName || null;
+    } else {
+      playGamesPlayerName = null;
     }
-  } catch (e) { playGamesSignedIn = false; }
+  } catch (e) { playGamesSignedIn = false; playGamesPlayerName = null; }
 }
 async function signInToPlayGames() {
-  if (!playGamesAvailable()) return;
+  if (!playGamesAvailable() || playGamesSignInPending) return;
+  playGamesSignInPending = true;
+  playGamesSignInFailed = false;
+  renderSettingsToggles();
   try {
     const result = await window.Capacitor.Plugins.PlayGames.signIn({ silent: false });
     onPlayGamesSignInResult(result);
   } catch (e) {
-    // user backed out of the account chooser, or a real failure - either way just leave the
-    // "Sign in" button showing rather than popping an error for what's often just a cancel
+    // user backed out of the account chooser, or a real failure - either way, drop straight
+    // back to an unsigned, re-tappable state (never a stuck spinner, never a stale 'signed in')
+    playGamesSignInPending = false;
+    playGamesSignedIn = false;
+    playGamesSignInFailed = true;
+    renderSettingsToggles();
   }
 }
 // called once at startup - tries a no-UI sign-in first (succeeds automatically on most devices
@@ -2962,6 +2993,16 @@ async function initPlayGamesIfAvailable() {
     await window.Capacitor.Plugins.PlayGames.addListener('signInStateChanged', onPlayGamesSignInResult);
   } catch (e) {}
 }
+// Lifecycle re-check: Capacitor's WebView fires 'visibilitychange' across an Android activity
+// pause/resume just like a real browser tab switch, so this covers the "signed out of Play
+// Games system-wide while backgrounded" case without pulling in @capacitor/app (not a project
+// dependency today) purely for one event - adding it would mean a second native plugin to wire
+// through gradle/cap sync for a signal this DOM event already gives us. Only re-renders when
+// Settings is the open screen, so it's a no-op the rest of the time.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !playGamesAvailable()) return;
+  refreshPlayGamesState().then(() => { if (appState === 'settings') renderSettingsToggles(); });
+});
 function confirmResetProgress() {
   showOverlay('Reset Progress?', 'This erases all levels, stars, pearls, coins and power-ups. This cannot be undone.', 'Erase Everything', () => {
     ['bubbleBlastProgress', 'bubbleBlastEconomy', 'bubbleBlastPowers', 'bubbleBlastDailyLast'].forEach(k => localStorage.removeItem(k));

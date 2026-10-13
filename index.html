@@ -2888,7 +2888,7 @@ async function buyCoinsTopUp() {
   // consumes since that would let a one-time purchase be rebought.
   const consumed = await consumeWithRetries(Billing, transaction.purchaseToken);
   if (!consumed) {
-    showOverlay('250 Coins', "Your 250 coins were added! We're still finishing up with Google Play in the background - if Top Up Coins seems unavailable for a bit, give it a few minutes before trying again.", 'OK', showShop);
+    showOverlay('250 Coins', "Your 250 coins were added! We're still confirming with Google Play in the background - no need to buy again; if Top Up Coins looks unavailable for a bit, that's expected and will clear up shortly.", 'OK', showShop);
     return;
   }
   showOverlay('250 Coins', '+250 coins added to your wallet!', 'Nice', showShop);

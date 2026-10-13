@@ -11,11 +11,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Chewy&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    /* some WebView builds (seen on certain Huawei/Honor devices) report a wildly inflated
-       var(--safe-b) even with no gesture nav bar present, which bloats every
-       layout that adds it in raw - capped once here so a bad reading can't blow up the whole
-       bottom nav/HUD, while real (small) insets on gesture-nav devices still come through. */
-    --safe-b: min(env(safe-area-inset-bottom), 24px);
+    /* fitToViewport converts native physical insets into uniform scene units. */
+    --safe-b: 0px;
     --outer: #1E130D;
     --cream1: #FCF1E2; --cream2: #F4DEC3; --cream3: #EAC8A2;
     --ink: #3B2418; --muted-ink: #7A5A45; --soft-ink: #9C6B4B;
@@ -38,10 +35,7 @@
   button, input, select, textarea { font-family: inherit; color: inherit; }
   html, body {
     margin: 0; width: 100%; height: 100%;
-    /* matches #wrap's own top gradient color, not a neutral dark shade - on phones taller/
-       narrower than our fixed 390x844 canvas, the uniform-scale fit (see fitToViewport) can
-       leave a sliver of body visible past #wrap's bottom or sides, and a plain dark background
-       there used to look like a broken black bar instead of a seamless edge. */
+    /* The viewport-sized scene covers this startup background after its first fit. */
     background: var(--cream1);
     display: flex; align-items: flex-start; justify-content: center;
     font-family: 'Nunito', system-ui, sans-serif;
@@ -51,7 +45,7 @@
   .fredoka { font-family: 'Fredoka', system-ui, sans-serif; }
   .chewy { font-family: 'Chewy', system-ui, sans-serif; }
   #wrap {
-    position: relative; width: 390px; height: 844px;
+    position: relative; width: 390px; height: 928px;
     background: linear-gradient(180deg, var(--cream1) 0%, var(--cream2) 55%, var(--cream3) 100%);
     color: var(--ink);
     /* top center, not center center: with body's align-items:flex-start (see html,body rule
@@ -65,17 +59,12 @@
     touch-action: none;
   }
   #mapCanvas { display: block; }
-  /* 3-column grid (level pill / timer / score pill), not flex - #timerWrap used to be a
-     separately absolutely-positioned element centered independently of this row, which meant
-     nothing reserved it any space: once the score pill's text got wide enough (higher scores,
-     more digits) its left edge could run right into the timer bar. A grid's middle column
-     reserves real space for the timer by construction, so the two can never overlap regardless
-     of how wide either neighbor's content gets. The streak badge is deliberately NOT a 3rd
-     column here - seeits own comment below for why it lives outside #hud entirely. */
+  /* Shared HUD defaults. Flavor Journey overrides below reserve separate
+     level/score/pause and timer rows; streak feedback stays outside the HUD. */
   #hud {
-    position: absolute; top: calc(20px + env(safe-area-inset-top)); left: 0; right: 0;
+    position: absolute; top: calc(20px + var(--scene-safe-top, 0px)); left: 0; right: 0;
     display: none; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
-    padding: 0 calc(56px + env(safe-area-inset-right)) 0 calc(16px + env(safe-area-inset-left));
+    padding: 0 calc(56px + var(--scene-safe-right, 0px)) 0 calc(16px + var(--scene-safe-left, 0px));
     pointer-events: none;
   }
   #levelLabel { justify-self: start; }
@@ -99,7 +88,7 @@
      badge); setting display:none in this rule would make that same clear-the-inline-style
      trick a no-op; since the stylesheet's own display would still say none underneath it. */
   #streakLabel {
-    position: absolute; top: calc(58px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+    position: absolute; top: calc(58px + var(--scene-safe-top, 0px)); left: 50%; transform: translateX(-50%);
     z-index: 2; pointer-events: none;
     color: #fff; font-size: 13px; font-weight: 800; letter-spacing: 0.3px; white-space: nowrap;
     background: rgba(255,138,90,0.85);
@@ -133,7 +122,7 @@
   #timerLabel.frozen { color: var(--cyan); }
   @keyframes barPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
   #combo {
-    position: absolute; top: calc(74px + env(safe-area-inset-top)); left: 0; right: 0;
+    position: absolute; top: calc(74px + var(--scene-safe-top, 0px)); left: 0; right: 0;
     text-align: center; color: #ffd84a; font-size: 38px; font-weight: 900;
     font-family: 'Fredoka', sans-serif; letter-spacing: 0.5px;
     text-shadow: 0 2px 0 #c47a1a, 0 4px 14px rgba(0,0,0,0.6);
@@ -188,7 +177,7 @@
   .statBox.coin .lbl { color: #8A6410; }
   .statBox .val { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 22px; color: var(--ink); }
   .ecoBar {
-    position: absolute; top: calc(14px + env(safe-area-inset-top)); left: calc(16px + env(safe-area-inset-left)); right: calc(60px + env(safe-area-inset-right)); z-index: 3;
+    position: absolute; top: calc(14px + var(--scene-safe-top, 0px)); left: calc(16px + var(--scene-safe-left, 0px)); right: calc(60px + var(--scene-safe-right, 0px)); z-index: 3;
     display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
   }
   .ecoPill {
@@ -366,7 +355,7 @@
     justify-content: flex-start; padding: 130px 0 20px;
   }
   #mapScreen h2 { margin: 0 0 10px; font-size: 20px; }
-  #shopScreen { justify-content: flex-start; padding: calc(70px + env(safe-area-inset-top)) 16px 16px; }
+  #shopScreen { justify-content: flex-start; padding: calc(70px + var(--scene-safe-top, 0px)) 16px 16px; }
   #shopScreen h2 { margin: 0 0 8px; font-size: 24px; font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--brown); }
   #shopScroll { position: relative; width: 100%; flex: 1; overflow-y: auto; scrollbar-width: thin; }
   #shopCards { display: flex; flex-direction: column; gap: 12px; padding: 4px 2px 80px; }
@@ -394,7 +383,7 @@
   }
   .shopCard .buy:active { transform: translateY(2px); }
   .shopCard .buy:disabled { opacity: 0.45; cursor: default; pointer-events: none; }
-  #settingsScreen { justify-content: flex-start; padding: calc(70px + env(safe-area-inset-top)) 16px 16px; }
+  #settingsScreen { justify-content: flex-start; padding: calc(70px + var(--scene-safe-top, 0px)) 16px 16px; }
   #settingsScreen h2 { margin: 0 0 12px; font-size: 24px; font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--brown); }
   #settingsScroll { position: relative; width: 100%; flex: 1; overflow-y: auto; scrollbar-width: thin; }
   .settingsGroupLabel { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: var(--muted-ink); margin: 14px 6px 6px; text-align: left; }
@@ -496,7 +485,7 @@
   #mapScreen .btn { margin-top: 10px; }
   #hint { display: none; }
   #muteBtn {
-    position: absolute; top: calc(14px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); z-index: 10;
+    position: absolute; top: calc(14px + var(--scene-safe-top, 0px)); right: calc(14px + var(--scene-safe-right, 0px)); z-index: 10;
     width: 38px; height: 38px; border-radius: 50%;
     background: var(--brown); border: none; box-shadow: 0 3px 0 var(--brown-sh);
     color: var(--cream); font-size: 16px; cursor: pointer;
@@ -504,9 +493,9 @@
   }
   #muteBtn:active { transform: translateY(2px); box-shadow: none; }
   #powerPanel {
-    /* 2x2 grid tucked in the bottom-right corner: clear of the board above the kill line,
-       and clear of the boba mascot (centered, bottom edge) which it sits beside, not over. */
-    position: absolute; right: calc(8px + env(safe-area-inset-right)); bottom: calc(18px + var(--safe-b)); z-index: 4;
+    /* Shared power-panel defaults; the Flavor Journey toolbar below uses
+       one row with touch targets sized for the rendered mobile viewport. */
+    position: absolute; right: calc(8px + var(--scene-safe-right, 0px)); bottom: calc(18px + var(--safe-b)); z-index: 4;
     display: none; grid-template-columns: repeat(2, 1fr); gap: 6px;
     background: rgba(20,14,40,0.4); backdrop-filter: blur(6px);
     padding: 6px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.15);
@@ -581,7 +570,7 @@
   .splashTip { font-size: 14px; font-weight: 800; color: #7A5A45; margin-top: 10px; }
 
   /* -- onboarding -- */
-  #onboardingScreen { position: absolute; inset: 0; flex-direction: column; padding: calc(54px + env(safe-area-inset-top)) calc(28px + env(safe-area-inset-right)) calc(40px + var(--safe-b)) calc(28px + env(safe-area-inset-left)); z-index: 50; }
+  #onboardingScreen { position: absolute; inset: 0; flex-direction: column; padding: calc(54px + var(--scene-safe-top, 0px)) calc(28px + var(--scene-safe-right, 0px)) calc(40px + var(--safe-b)) calc(28px + var(--scene-safe-left, 0px)); z-index: 50; }
   .skipBtn { align-self: flex-end; border: none; background: rgba(59,36,24,.08); color: var(--ink); font-weight: 800; font-size: 14px; padding: 10px 16px; border-radius: 99px; cursor: pointer; }
   .onbArt { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 110px; }
   .onbDots { display: flex; gap: 8px; justify-content: center; margin-bottom: 18px; }
@@ -596,7 +585,7 @@
     background: #000; align-items: center; justify-content: center;
   }
   #introVideoScreen video { width: 100%; height: 100%; object-fit: cover; background: #000; }
-  .introVideoSkip { position: absolute; right: calc(14px + env(safe-area-inset-right)); top: calc(14px + env(safe-area-inset-top)); align-self: auto; background: rgba(255,255,255,.18); color: #fff; }
+  .introVideoSkip { position: absolute; right: calc(14px + var(--scene-safe-right, 0px)); top: calc(14px + var(--scene-safe-top, 0px)); align-self: auto; background: rgba(255,255,255,.18); color: #fff; }
 
   /* -- home logo + see intro -- */
   .homeLogo { width: 180px; max-width: 55%; height: auto; margin-top: -6px; filter: drop-shadow(0 8px 14px rgba(74,43,26,.22)); }
@@ -612,15 +601,15 @@
   }
 
   /* -- home side chips -- */
-  .homeSideCol { position: absolute; top: calc(116px + env(safe-area-inset-top)); display: flex; flex-direction: column; gap: 16px; z-index: 3; }
-  .homeSideLeft { left: calc(16px + env(safe-area-inset-left)); } .homeSideRight { right: calc(16px + env(safe-area-inset-right)); }
+  .homeSideCol { position: absolute; top: calc(116px + var(--scene-safe-top, 0px)); display: flex; flex-direction: column; gap: 16px; z-index: 3; }
+  .homeSideLeft { left: calc(16px + var(--scene-safe-left, 0px)); } .homeSideRight { right: calc(16px + var(--scene-safe-right, 0px)); }
   .roundChip { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; border: none; background: none; color: var(--ink); cursor: pointer; padding: 0; }
   .roundChip .chipIcon { width: 60px; height: 60px; flex: none; border-radius: 20px; background: var(--card); box-shadow: 0 5px 0 var(--card-sh); display: flex; align-items: center; justify-content: center; font-size: 24px; padding: 10px; box-sizing: border-box; }
   .roundChip .chipIcon img { width: 100%; height: 100%; object-fit: contain; }
   .roundChip .chipLabel { font-size: 12px; font-weight: 800; }
 
   /* -- map header -- */
-  .mapHeaderRow { position: absolute; top: calc(56px + env(safe-area-inset-top)); left: calc(14px + env(safe-area-inset-left)); right: calc(14px + env(safe-area-inset-right)); z-index: 3; display: flex; flex-direction: column; gap: 8px; }
+  .mapHeaderRow { position: absolute; top: calc(56px + var(--scene-safe-top, 0px)); left: calc(14px + var(--scene-safe-left, 0px)); right: calc(14px + var(--scene-safe-right, 0px)); z-index: 3; display: flex; flex-direction: column; gap: 8px; }
   .mapKicker { font-size: 12px; font-weight: 800; color: var(--muted-ink); letter-spacing: 1px; }
   #mapScreen h2 { margin: 0; font-size: 21px; color: var(--brown); }
 
@@ -631,7 +620,7 @@
   /* -- bottom nav -- */
   #bottomNav {
     position: absolute; left: 0; right: 0; bottom: 0; height: calc(64px + var(--safe-b)); z-index: 8;
-    padding: 0 calc(26px + env(safe-area-inset-right)) calc(10px + var(--safe-b)) calc(26px + env(safe-area-inset-left)); border-radius: 24px 24px 0 0;
+    padding: 0 calc(26px + var(--scene-safe-right, 0px)) calc(10px + var(--safe-b)) calc(26px + var(--scene-safe-left, 0px)); border-radius: 24px 24px 0 0;
     background: var(--card); box-shadow: 0 -4px 20px rgba(122,74,46,.15);
     align-items: center; justify-content: space-between;
   }
@@ -646,13 +635,12 @@
   .navHomeDot img { width: 100%; height: 100%; object-fit: contain; }
 
   /* -- pause button (in-game) -- */
-  /* matches the HUD pills' dark-glass look (not the opaque cream "card" style used by menu
-     buttons elsewhere) - this sits directly below the score/level pills in-game, and a bright
-     solid card there read as a mismatched, unrelated control instead of part of the same cluster. */
+  /* Shared pause defaults. The Flavor Journey override places this control
+     beside the score in the cream HUD header. */
   #pauseBtn {
     /* left matches #hud's own left padding exactly, so this lines up with the level pill
        directly above it instead of sitting a few px further out. */
-    position: absolute; left: calc(16px + env(safe-area-inset-left)); top: calc(54px + env(safe-area-inset-top)); z-index: 6;
+    position: absolute; left: calc(16px + var(--scene-safe-left, 0px)); top: calc(54px + var(--scene-safe-top, 0px)); z-index: 6;
     width: 44px; height: 44px; border: 1px solid rgba(255,255,255,0.15); border-radius: 16px;
     background: rgba(59,36,24,0.55); backdrop-filter: blur(4px);
     box-shadow: 0 3px 8px rgba(0,0,0,0.22);
@@ -675,7 +663,7 @@
   }
 
   /* -- bottom sheet overlays (pause / toppings / daily) -- */
-  .sheetOverlay { position: absolute; inset: 0; z-index: 30; background: rgba(59,36,24,.55); align-items: flex-end; justify-content: center; padding: calc(16px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(24px + var(--safe-b)) calc(12px + env(safe-area-inset-left)); }
+  .sheetOverlay { position: absolute; inset: 0; z-index: 30; background: rgba(59,36,24,.55); align-items: flex-end; justify-content: center; padding: calc(16px + var(--scene-safe-top, 0px)) calc(12px + var(--scene-safe-right, 0px)) calc(24px + var(--safe-b)) calc(12px + var(--scene-safe-left, 0px)); }
   .sheetOverlay.center { align-items: center; }
   .sheetCard { position: relative; width: 100%; border-radius: 30px; background: var(--card); color: var(--ink); padding: 22px 20px; box-shadow: 0 10px 0 rgba(59,36,24,.3); display: flex; flex-direction: column; gap: 12px; }
   .sheetTitle { text-align: center; font-size: 36px; color: var(--brown); }
@@ -759,9 +747,70 @@
   .dailyIcon img { width: 100%; height: 100%; object-fit: contain; }
   .dailyAmt { font-family: 'Fredoka'; font-weight: 700; font-size: 14px; }
   .dailyCheck { position: absolute; inset: 0; border-radius: 15px; background: rgba(143,203,107,.9); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; color: var(--matcha-ink); }
+
+  /* Flavor Journey chrome keeps the existing branded sky and character artwork. */
+  #hud { top: calc(10px + var(--scene-safe-top, 0px)); left: calc(12px + var(--scene-safe-left, 0px)); right: calc(12px + var(--scene-safe-right, 0px)); padding: 8px 10px; grid-template-columns: minmax(0,1fr) minmax(80px,auto) var(--touch-size,44px); gap: 6px 10px; border-radius: 20px; background: #fff7ef; box-shadow: 0 4px 14px rgba(74,43,26,.12); z-index: 2; }
+  .hudLevel,.hudScore { min-width: 0; display: flex; flex-direction: column; gap: 2px; height: var(--touch-size,44px); justify-content: center; }
+  .hudLevel { grid-column: 1; grid-row: 1; }
+  .hudScore { grid-column: 2; grid-row: 1; text-align: right; }
+  .hudLevel small,.hudScore small { font-size: 10px; font-weight: 900; color: #876651; letter-spacing: .5px; }
+  .hudLevel small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #hud span { padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; color: #50321f; letter-spacing: 0; }
+  #levelLabel { font: 700 18px 'Fredoka',sans-serif; }
+  #scoreLabel { font: 700 23px 'Fredoka',sans-serif; font-variant-numeric: tabular-nums; opacity: 1; }
+  #timerWrap { grid-column: 1 / -1; grid-row: 2; width: 100%; flex-direction: row; gap: 10px; padding: 6px 9px; background: #f0e4d5; border-radius: 12px; }
+  #timerBarTrack { flex: 1; min-width: 0; width: auto; height: 9px; background: #ddc7b2; border: 0; box-shadow: none; }
+  #timerBarFill { background: linear-gradient(90deg,#8fbb78,#b75b42); }
+  #hud #timerLabel { flex: 0 0 44px; font-size: 15px; text-align: right; color: #50321f; text-shadow: none; font-variant-numeric: tabular-nums; }
+  #hud #timerLabel.urgent { color: #b6273b; }
+  #hud #timerLabel.frozen { color: #276b78; }
+  #pauseBtn { top: calc(18px + var(--scene-safe-top, 0px)); left: auto; right: calc(22px + var(--scene-safe-right, 0px)); width: var(--touch-size,44px); height: var(--touch-size,44px); background: #f0e4d5; border: 0; box-shadow: none; border-radius: 15px; }
+  #pauseBtn span { background: #50321f; }
+  #streakLabel { top: calc(79px + var(--touch-size,44px) + var(--scene-safe-top, 0px)); padding: 4px 12px; font-size: 11px; line-height: 16px; background: #fff7ef; color: #a65339; box-shadow: 0 2px 6px rgba(74,43,26,.14); }
+  #combo { top: calc(170px + var(--scene-safe-top, 0px)); z-index: 3; }
+  #mapScreen { padding: calc(168px + var(--scene-safe-top, 0px)) 0 calc(80px + var(--nav-height,64px) + var(--safe-b)); }
+  #mapScreen .ecoBar { right: 16px; }
+  .mapHeaderRow { top: calc(62px + var(--scene-safe-top, 0px)); padding: 10px 14px; border-radius: 20px; background: #fff7ef; text-align: left; box-shadow: 0 4px 14px rgba(74,43,26,.1); }
+  .mapKicker { font-size: 9px; letter-spacing: 1.5px; color: #a65339; }
+  #mapScreen h2 { font: 700 22px 'Fredoka',sans-serif; margin: 2px 0 6px; color: #50321f; }
+  .journeyProgress { height: 5px; border-radius: 10px; background: #eadbca; overflow: hidden; }
+  #journeyProgressFill { height: 100%; background: #b75b42; border-radius: inherit; }
+  #journeyProgressLabel { display: block; margin-top: 4px; font-size: 10px; color: #876651; }
+  #galaxyScroll { min-height: 0; }
+  .levelNode { width: max(72px,var(--touch-size,44px)); height: max(72px,var(--touch-size,44px)); border: 0; padding: 0; background: none; }
+  .levelNodeInner { border-radius: 20px; animation: none; color: #50321f; border: 3px solid #fff7ef; box-shadow: 0 5px 0 rgba(74,43,26,.22); }
+  .levelNode.locked .levelNodeInner { color: #876651; box-shadow: 0 4px 0 rgba(74,43,26,.13); border-color: #fff7ef; font-size: 18px; }
+  .levelNode.current .levelNodeInner { animation: none; background: #b75b42 !important; color: #fff7ef; outline: 4px solid rgba(183,91,66,.25); box-shadow: 0 5px 0 #8a3f2d; }
+  .levelStars { width: 66px; }
+  .levelStars img { width: 20px; height: 20px; }
+  .levelMascotMarker { font-size: 10px; font-weight: 900; color: #a65339; background: #fff7ef; border-radius: 999px; padding: 4px 9px; animation: none; white-space: nowrap; }
+  .journeyContinue { position: absolute; left: 14px; right: 14px; bottom: calc(14px + var(--nav-height,64px) + var(--safe-b)); display: flex; align-items: center; justify-content: space-between; min-height: var(--touch-size,44px); padding: 12px 16px; border: 0; border-radius: 20px; background: #fff7ef; color: #50321f; box-shadow: 0 4px 12px rgba(74,43,26,.16); text-align: left; cursor: pointer; z-index: 3; }
+  .journeyContinue strong,.journeyContinue small { display: block; }
+  .journeyContinue strong { font: 700 18px 'Fredoka',sans-serif; }
+  .journeyContinue small { font-size: 10px; color: #876651; margin-top: 2px; }
+  .journeyContinue b { background: #b75b42; color: #fff7ef; padding: 12px 14px; border-radius: 14px; font-size: 13px; }
+  .journeyChapter { position: absolute; left: 16px; right: 16px; padding: 9px 14px; background: #fff7ef; color: #876651; border-radius: 14px; font-size: 11px; font-weight: 900; letter-spacing: .5px; }
+  #bottomNav { height: calc(var(--nav-height,64px) + var(--safe-b)); }
+  .navItem { width: max(64px,var(--touch-size,44px)); min-height: var(--touch-size,44px); justify-content: center; }
+  .navHomeBtn { width: max(56px,var(--touch-size,44px)); height: max(56px,var(--touch-size,44px)); }
+  #playBtn { min-height: var(--touch-size,44px); justify-content: center; }
+  @media(prefers-reduced-motion:reduce) { .menuFloaters img,.levelNodeInner,.levelMascotMarker { animation: none !important; } }
+
+  #powerPanel { left: calc(8px + var(--scene-safe-left, 0px)); right: calc(8px + var(--scene-safe-right, 0px)); bottom: var(--safe-b); grid-template-columns: repeat(5,var(--touch-size,44px)); justify-content: center; gap: 3px; padding: 2px; background: #fff7ef; border: 0; border-radius: 14px; box-shadow: 0 -2px 10px rgba(74,43,26,.12); }
+  .powerBtn { width: var(--touch-size,44px); height: var(--touch-size,44px); border: 1px solid #ddc7b2; background: #f0e4d5; padding: 9px; }
+  .powerBtn img { max-width: 38px; max-height: 38px; }
+  .powerBtn small { bottom: 2px; right: 2px; color: #50321f; background: #fff7ef; border: 0; padding: 1px 4px; }
+  .powerBtn.armed { background: #ffe1b0; border-color: #b75b42; box-shadow: inset 0 0 0 2px #b75b42; }
+  #bobaMascot { top: 707px; bottom: auto; }
+  #portraitPrompt { position: fixed; inset: 0; z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: max(20px,var(--safe-area-inset-top,env(safe-area-inset-top))) max(20px,var(--safe-area-inset-right,env(safe-area-inset-right))) max(20px,var(--safe-area-inset-bottom,env(safe-area-inset-bottom))) max(20px,var(--safe-area-inset-left,env(safe-area-inset-left))); background: #fff7ef; color: #50321f; text-align: center; }
+  #portraitPrompt img { width: 66px; height: 66px; object-fit: contain; }
+  #portraitPrompt h2 { font: 700 26px 'Fredoka',sans-serif; margin: 0; }
+  #portraitPrompt p { font-size: 17px; line-height: 1.5; margin: 0; }
+  #gameExitLoading { position: fixed; inset: 0; z-index: 99; display: none; align-items: center; justify-content: center; background: #fff7ef; color: #50321f; font-size: 20px; }
 </style>
 </head>
 <body>
+<div id="safeAreaProbe" aria-hidden="true" style="position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)"></div>
 <div id="wrap">
   <button id="muteBtn" title="Mute music">🔊</button>
   <audio id="bgmAudio" src="bgm-track1.mp3" preload="auto"></audio>
@@ -848,13 +897,14 @@
       <img src="icons/fall-cup2.png" style="--x:62%; --d:6s; --s:0.9" alt="">
     </div>
     <div class="mapHeaderRow">
-      <div class="mapHeaderCol"><span class="mapKicker">TEA MAP</span><h2 id="mapWorldTitle">Flavor Map</h2></div>
+      <div class="mapHeaderCol"><span class="mapKicker">FLAVOR JOURNEY</span><h2 id="mapWorldTitle">Flavor Map</h2><div class="journeyProgress"><div id="journeyProgressFill"></div></div><small id="journeyProgressLabel"></small></div>
     </div>
     <div class="ecoBar"></div>
     <div id="galaxyScroll">
       <canvas id="mapCanvas"></canvas>
       <div id="mapNodes"></div>
     </div>
+    <button id="journeyContinue" class="journeyContinue"><span><strong id="journeyNextLevel">Level 1-1</strong><small>Choose your toppings</small></span><b>Play next ›</b></button>
   </div>
 
   <div id="shopScreen">
@@ -878,14 +928,14 @@
     <button id="navShopBtn" class="navItem"><span class="navIcon navIconShop"><img src="icons/icon-shop.png" alt=""></span><span>Shop</span></button>
   </div>
 
-  <button id="pauseBtn" title="Pause"><span></span><span></span></button>
+  <button id="pauseBtn" title="Pause" aria-label="Pause game"><span></span><span></span></button>
   <div id="hud">
-    <span id="levelLabel">1-1</span>
+    <div class="hudLevel"><small id="flavorLabel">Brown Sugar Bay</small><span id="levelLabel">Level 1-1</span></div>
     <div id="timerWrap">
       <div id="timerBarTrack"><div id="timerBarFill"></div></div>
       <span id="timerLabel">1:00</span>
     </div>
-    <span id="scoreLabel">Score: 0</span>
+    <div class="hudScore"><small>SCORE</small><span id="scoreLabel">0</span></div>
   </div>
   <span id="streakLabel" style="display:none;"></span>
   <div id="combo"></div>
@@ -986,6 +1036,8 @@
     </div>
   </div>
 </div>
+<div id="gameExitLoading" role="status" aria-live="polite"><p>One moment…</p></div>
+<div id="portraitPrompt" role="status" aria-live="polite"><img src="icons/fall-cup1.png" alt=""><h2>Turn for a better sip</h2><p>Rotate your phone to portrait to play.<br>Your game will wait right here.</p></div>
 
 <script>
 // The <video id="introVideo"> tag lives in the markup as a sibling of #introVideoScreen
@@ -1004,9 +1056,11 @@
 })();
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const W = 390, H = 844;
+const gameContext = ctx;
+const BASE_W = 390, BASE_H = 928, PLAYFIELD_H = 844;
+let W = BASE_W, H = BASE_H;
 // render at the device's real pixel density (capped - no point buffering past ~2.5x, and it
-// costs fill-rate on cheaper phones) instead of a flat 390x844 backing buffer stretched up by
+// costs fill-rate on cheaper phones) instead of a flat scene backing buffer stretched up by
 // the #wrap scale transform, which is what made every sprite/bubble look soft on hi-res phones.
 const DPR = Math.min(window.devicePixelRatio || 1, 2.5);
 canvas.width = W * DPR; canvas.height = H * DPR;
@@ -1017,7 +1071,7 @@ ctx.scale(DPR, DPR);
 // board's own geometry (fewer cols, smaller radius) so the shared engine functions below
 // (cellX/cellY/colsInRow, findMatch, popCluster, etc.) work unmodified for either board.
 let RADIUS = 20, DIAM = RADIUS * 2, ROW_H = RADIUS * 1.75;
-let COLS = 9, TOP_MARGIN = 130, LEFT_MARGIN = (W - COLS * DIAM) / 2;
+let COLS = 9, TOP_MARGIN = 170, LEFT_MARGIN = (W - COLS * DIAM) / 2;
 
 const COLORS = ['#FF6FA5', '#7CB342', '#C17F3E', '#FFB648', '#B28CFF']; // strawberry, matcha, brown sugar, mango, taro
 // each flavor has its own little personality, like the character sheet: cheerful, playful, cranky, anxious, dreamy
@@ -1026,6 +1080,32 @@ const COLORS = ['#FF6FA5', '#7CB342', '#C17F3E', '#FFB648', '#B28CFF']; // straw
 // The pose rig (which columns mean what) is shared by every row - only `row` differs per flavor.
 const pearlSprite = new Image();
 pearlSprite.src = 'pearl-sprites.png';
+// User-supplied atlas is copied byte-for-byte; crops omit label chips at render time.
+const sinkerAtlas = new Image();
+sinkerAtlas.src = 'kawaii-boba-emotes.png';
+const SINKER_SPRITES = { blue: sinkerAtlas, clear: sinkerAtlas };
+const SINKER_ROWS = { blue: 4, clear: 6 };
+const SINKER_ROW_CROP = { blue: { top: 570, height: 86 }, clear: { top: 813, height: 71 } };
+function sinkerFrame(seed, damaged = false, worried = false, mood = 'IDLE') {
+  const state = worried ? 'HIT' : damaged ? 'SAD' : mood.toUpperCase();
+  if (state === 'IDLE' || !BOBA_POSE[state]) return animatedPearlPick(seed, false);
+  const frames = BOBA_POSE[state];
+  return frames[Math.floor(timeNow * (state === 'HIT' ? 6 : 3) + seed * 13) % frames.length];
+}
+function sinkerCrop(variant, frame) {
+  const row = SINKER_ROW_CROP[variant];
+  if (!row) return null;
+  const pose = Math.max(0, Math.min(19, Math.floor(frame)));
+  const xScale = sinkerAtlas.naturalWidth / 1125;
+  const yScale = sinkerAtlas.naturalHeight / 887;
+  return {
+    sx: (PEARL_COL_CENTER[pose] - PEARL_COL_HALFW[pose]) * xScale,
+    sy: row.top * yScale,
+    sw: PEARL_COL_HALFW[pose] * 2 * xScale,
+    sh: row.height * yScale,
+    row: SINKER_ROWS[variant], frame: pose
+  };
+}
 const PEARL_CARD_W = 0, PEARL_CELL_W = 1125 / 20, PEARL_CELL_H = 563 / 7;
 // The sheet's grid is NOT perfectly uniform (it reads as AI-generated art, not a hand-cut atlas):
 // column pitch drifts from ~60px down to ~50px across the row, each row's own face art overflows
@@ -1097,6 +1177,7 @@ const BUBBLE_ALPHA = 0.8;
 let keyLeft = false, keyRight = false;
 const ROT_SPEED = 2.4;
 const LAUNCHER_SCALE = 1.8;
+const LAUNCHER_TUBE_UNITS = 1.93;
 let launcherRecoilAt = -10;
 // power-up activation feedback: a bright flash that settles into a colored glow around the
 // straw, so using a power-up reads as "something just happened to my straw" rather than just
@@ -1119,8 +1200,8 @@ function maybeSpecialExtras() {
   return {};
 }
 
-// --- Frozen Sinker: a tea-leaf-clump obstacle that needs 2 adjacent pops to clear, like ice,
-// but unlike ice it doesn't turn back into a normal matchable bubble - the 2nd hit just drops
+// --- Frozen Sinker: an obstacle cleared by two adjacent popped pearls, like ice,
+// but unlike ice it does not thaw into a matchable pearl: the second damage hit drops
 // it outright. Always placed in pre-grouped clusters of 2-4 adjacent cells (never scattered
 // single cells) specifically so a player can take out a whole clump with one well-aimed combo,
 // rather than needing to individually hunt down isolated unlucky cells one at a time.
@@ -1150,7 +1231,11 @@ function placeSinkerCluster(rowIndices) {
     seen.add(`${pick[0]},${pick[1]}`);
     group.push(pick);
   }
-  for (const [r, c] of group) grid[r][c].sinker = SINKER_START;
+  const variant = ['slate', 'blue', 'clear'][Math.floor(Math.random() * 3)];
+  for (const [r, c] of group) {
+    grid[r][c].sinker = SINKER_START;
+    grid[r][c].sinkerVariant = variant;
+  }
 }
 
 // --- shot streak: consecutive successful shots (no miss), independent of the per-shot comboChain ---
@@ -1209,10 +1294,8 @@ function applyEndlessDifficulty() {
 let pausedFromState = 'playing';
 
 let shooterX = W / 2;
-let shooterY = H - 90; // was H-50: raised to give the (now less-cropped) boba mascot room to
-                        // show his full face/straw above the screen's bottom edge; shrinks the
-                        // playfield above KILL_LINE_Y slightly, which is an acceptable tradeoff
-const KILL_LINE_Y = shooterY - RADIUS * 3.6;
+let shooterY = PLAYFIELD_H - 90; // Keep the original playfield independently of bottom chrome.
+let KILL_LINE_Y = shooterY - RADIUS * 3.6;
 
 function rowOffset(r) { return (r % 2 === 1) ? RADIUS : 0; }
 function colsInRow(r) { return (r % 2 === 1) ? COLS - 1 : COLS; }
@@ -1394,17 +1477,78 @@ async function initAdsIfAvailable() {
 // if this local copy is ever missing (new device, cleared data, etc).
 let removeAdsPurchased = false;
 try { removeAdsPurchased = localStorage.getItem('bubbleBlastRemoveAds') === '1'; } catch (e) {}
-// Called only from the three paths where a game actually ends (level win, level given up,
-// endless run over) - never from a retry/continue prompt or a power-up - so a player sees at
-// most one interstitial per played game instead of one per overlay shown.
+// Only ever called from inside the endGameTransitionPending-gated exitCompletedGame()
+// transition (level win, level given up, endless run over, or a pause-menu restart/quit) -
+// never from a power-up or an incidental overlay - and the pending flag means at most one
+// interstitial attempt can be in flight at a time, never stacking from rapid repeat taps.
+let endGameTransitionPending = false, rewardedAdPending = false;
+const INTERSTITIAL_PREPARE_TIMEOUT_MS = 8000;
 async function showInterstitialAfterGame() {
-  if (removeAdsPurchased || !admobAvailable()) return;
+  const cap = window.Capacitor;
+  if (removeAdsPurchased || !admobAvailable() || (cap.isNativePlatform && !cap.isNativePlatform())) return;
+  const plugin = cap.Plugins.AdMob;
+  const handles = [];
+  let cancelled = false, presented = false, showing = false, finished = false;
+  let complete;
+  const terminal = new Promise(resolve => { complete = resolve; });
+  const finish = () => { if (!finished) { finished = true; complete(); } };
+  const bounded = async promise => {
+    let timer;
+    try {
+      return await Promise.race([promise, new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Interstitial preparation timed out')), INTERSTITIAL_PREPARE_TIMEOUT_MS);
+      })]);
+    } finally { clearTimeout(timer); }
+  };
+  const listen = async (name, fn) => {
+    const registration = Promise.resolve(plugin.addListener(name, fn)).then(handle => {
+      if (cancelled) { Promise.resolve(handle.remove()).catch(() => {}); }
+      else handles.push(handle);
+      return handle;
+    });
+    await bounded(registration);
+  };
   try {
-    const AdMobPlugin = window.Capacitor.Plugins.AdMob;
-    await AdMobPlugin.prepareInterstitial({ adId: ADMOB_INTERSTITIAL_TEST_ID, isTesting: true });
-    await AdMobPlugin.showInterstitial();
+    // Android's showInterstitial promise resolves immediately after show(), not
+    // dismissal. Install terminal listeners before native presentation can start.
+    await listen('interstitialAdDismissed', () => { if (showing) finish(); });
+    await listen('interstitialAdFailedToShow', () => { if (showing && !presented) finish(); });
+    await listen('interstitialAdShowed', () => { if (showing) presented = true; });
+    await bounded(Promise.resolve(plugin.prepareInterstitial({ adId: ADMOB_INTERSTITIAL_TEST_ID, isTesting: true })));
+    if (cancelled || removeAdsPurchased) return;
+    showing = true;
+    // Once native show is invoked, only dismissal/failure can release the lock.
+    // A timer here could let a delayed native ad appear over the next game.
+    try {
+      Promise.resolve(plugin.showInterstitial()).catch(() => { if (!presented) finish(); });
+    } catch (e) { if (!presented) finish(); }
+    await terminal;
   } catch (e) {
-    // no fill / native hiccup - never block the result screen over an ad that didn't show
+    // No fill, unsupported bridge, or preparation timeout: proceed without an ad.
+    // A timed-out prepare has no continuation that can later invoke show().
+  } finally {
+    cancelled = true;
+    for (const handle of handles) {
+      try { Promise.resolve(handle.remove()).catch(() => {}); } catch (e) {}
+    }
+  }
+}
+async function exitCompletedGame(next) {
+  if (endGameTransitionPending || rewardedAdPending) return;
+  endGameTransitionPending = true;
+  appState = 'transition';
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('leaderboardOverlay').style.display = 'none';
+  stopOverlayAnim();
+  const loading = document.getElementById('gameExitLoading');
+  loading.style.display = 'flex';
+  document.getElementById('wrap').inert = true;
+  try { await showInterstitialAfterGame(); }
+  finally {
+    endGameTransitionPending = false;
+    loading.style.display = 'none';
+    document.getElementById('wrap').inert = window.innerWidth > window.innerHeight && window.innerHeight < 600;
+    next();
   }
 }
 function showFakeRewardedAd(onComplete) {
@@ -1424,21 +1568,74 @@ function showFakeRewardedAd(onComplete) {
     }
   }, 1000);
 }
-async function showRewardedAd(onComplete) {
-  document.getElementById('overlay').style.display = 'none';
-  if (admobAvailable()) {
+async function nativeRewardedOutcome(plugin) {
+  const handles = [];
+  let cancelled = false, showing = false, presented = false, earned = false, finished = false;
+  let resolveTerminal;
+  const terminal = new Promise(resolve => { resolveTerminal = resolve; });
+  const finish = failed => {
+    if (finished) return;
+    finished = true;
+    resolveTerminal({ earned, failed });
+  };
+  const bounded = async promise => {
+    let timer;
     try {
-      const AdMobPlugin = window.Capacitor.Plugins.AdMob;
-      await AdMobPlugin.prepareRewardVideoAd({ adId: ADMOB_REWARDED_TEST_ID, isTesting: true });
-      await AdMobPlugin.showRewardVideoAd();
-      onComplete();
-      return;
-    } catch (e) {
-      // no fill / native SDK hiccup - fall through to the fake placeholder so the player's
-      // "watch ad" tap still does something rather than silently failing
+      return await Promise.race([promise, new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Rewarded preparation timed out')), INTERSTITIAL_PREPARE_TIMEOUT_MS);
+      })]);
+    } finally { clearTimeout(timer); }
+  };
+  const listen = async (name, fn) => {
+    await bounded(Promise.resolve(plugin.addListener(name, fn)).then(handle => {
+      if (cancelled) { Promise.resolve(handle.remove()).catch(() => {}); }
+      else handles.push(handle);
+    }));
+  };
+  try {
+    await listen('onRewardedVideoAdReward', () => { if (showing && !finished) earned = true; });
+    await listen('onRewardedVideoAdDismissed', () => { if (showing) finish(false); });
+    await listen('onRewardedVideoAdFailedToShow', () => { if (showing && !presented) finish(true); });
+    await listen('onRewardedVideoAdShowed', () => { if (showing) presented = true; });
+    await bounded(Promise.resolve(plugin.prepareRewardVideoAd({ adId: ADMOB_REWARDED_TEST_ID, isTesting: true })));
+    showing = true;
+    // The Android show promise reports reward-earned, not dismissal. Only the
+    // terminal native callback can safely unlock the result screen/gameplay.
+    try {
+      Promise.resolve(plugin.showRewardVideoAd()).catch(() => { if (!presented) finish(true); });
+    } catch (e) { if (!presented) finish(true); }
+    return await terminal;
+  } catch (e) { return { earned: false, failed: true }; }
+  finally {
+    cancelled = true;
+    for (const handle of handles) {
+      try { Promise.resolve(handle.remove()).catch(() => {}); } catch (e) {}
     }
   }
-  showFakeRewardedAd(onComplete);
+}
+async function showRewardedAd(onComplete) {
+  if (endGameTransitionPending || rewardedAdPending) return;
+  const overlay = document.getElementById('overlay');
+  const restoreResult = overlay.style.display !== 'none';
+  rewardedAdPending = true;
+  overlay.style.display = 'none';
+  document.getElementById('wrap').inert = true;
+  let earned = false;
+  try {
+    const cap = window.Capacitor;
+    if (admobAvailable() && (!cap.isNativePlatform || cap.isNativePlatform())) {
+      const outcome = await nativeRewardedOutcome(cap.Plugins.AdMob);
+      earned = outcome.earned;
+      if (outcome.failed) earned = await new Promise(resolve => showFakeRewardedAd(() => resolve(true)));
+    } else {
+      earned = await new Promise(resolve => showFakeRewardedAd(() => resolve(true)));
+    }
+  } finally {
+    rewardedAdPending = false;
+    document.getElementById('wrap').inert = window.innerWidth > window.innerHeight && window.innerHeight < 600;
+    if (earned) onComplete();
+    else if (restoreResult) overlay.style.display = 'flex';
+  }
 }
 
 function getLevelConfig(level) {
@@ -1894,6 +2091,7 @@ function renderPowerPanel() {
     btn.className = 'powerBtn' + (armedPower === def.key ? ' armed' : '') + (count <= 0 ? ' disabled' : '');
     btn.innerHTML = `<img src="${def.img}" alt=""><small>${count}</small>`;
     btn.title = def.name;
+    btn.setAttribute('aria-label', `${def.name}, ${count} available`);
     if (count > 0) btn.addEventListener('click', () => activatePower(def.key));
     panel.appendChild(btn);
   }
@@ -1982,8 +2180,9 @@ function starPath(c, rOuter, points, innerRatio) {
 }
 
 function drawBubble(x, y, color, opts = {}) {
+  const ctx = opts.context || gameContext;
   const { scale = 1, fuse, seed = 0, bornAt = null, bob = true, worried = false } = opts;
-  const r = RADIUS * scale;
+  const r = (opts.radius || RADIUS) * scale;
 
   let sx = 1 + Math.sin(timeNow * 2.4 + seed * 13) * 0.015;
   let sy = 1 + Math.cos(timeNow * 2.6 + seed * 13) * 0.015;
@@ -2012,6 +2211,28 @@ function drawBubble(x, y, color, opts = {}) {
   ctx.restore();
 
   ctx.scale(sx, sy);
+  const sinkerArt = SINKER_SPRITES[opts.sinkerVariant];
+  if (opts.sinker > 0 && sinkerArt && sinkerArt.naturalWidth) {
+    const mood = opts.sinkerMood || (shotStreak >= 5 ? 'HAPPY' : 'IDLE');
+    const frame = opts.sinkerPose == null ? sinkerFrame(seed, opts.sinker < SINKER_START, worried, mood) : opts.sinkerPose;
+    const crop = sinkerCrop(opts.sinkerVariant, frame);
+    // Use the original pearl atlas's calibrated nonuniform horizontal windows.
+    // Blue topknots and clear flowers stay inside these row-specific face crops.
+    const width = r * 2 * 1.08 * (PEARL_COL_HALFW[crop.frame] * 2 / PEARL_CELL_W);
+    const height = width * crop.sh / crop.sw;
+    ctx.globalAlpha *= opts.sinkerVariant === 'clear' ? .82 : 1;
+    ctx.drawImage(sinkerArt, crop.sx, crop.sy, crop.sw, crop.sh, -width / 2, -height / 2, width, height);
+    ctx.globalAlpha = 1;
+    // The small one-hit marker supplements the worried pose for a clear damage cue.
+    if (opts.sinker < SINKER_START) {
+      ctx.fillStyle = '#fff7ef'; ctx.strokeStyle = '#547c93'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(r * .65, r * .6, r * .29, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#32556c'; ctx.font = `900 ${r * .4}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('1', r * .65, r * .6);
+    }
+    ctx.restore();
+    return;
+  }
 
   // rainbow renders as a normal round pearl (not the star specials use) - a glossy ball that
   // continuously breathes through hues, each one phase-offset by its own seed so a handful on
@@ -2099,7 +2320,7 @@ function drawBubble(x, y, color, opts = {}) {
       const sx = Math.max(0, Math.min(PEARL_COL_CENTER[pick] - PEARL_COL_HALFW[pick], PEARL_CARD_W + 20 * PEARL_CELL_W - cropW));
       const sy = face.top;
       // the sprite cell is a full-bleed, transparent-background character blob - drawn as-is,
-      // no clip/outline/fill behind it, so it reads as the actual sinker and not a face-on-a-ball.
+      // no clip/outline/fill behind it, so it preserves the original pearl character silhouette.
       // crop geometry is per-column/per-row calibrated (see PEARL_COL_*/PEARL_ROW_FACE above) to
       // hug just this pose's own art, so neighboring poses' faces/decorations and the label chip
       // text never make it into the drawn sinker.
@@ -2397,7 +2618,7 @@ function dropFloatingClusters() {
   for (let r = 0; r < grid.length; r++) {
     for (let c = 0; c < colsInRow(r); c++) {
       if (grid[r][c] && !connected.has(`${r},${c}`)) {
-        fallingBubbles.push({ x: cellX(r,c), y: cellY(r), vy: 1, vx: (Math.random()-0.5)*2, color: grid[r][c].color, seed: grid[r][c].seed, rot: 0 });
+        fallingBubbles.push({ x: cellX(r,c), y: cellY(r), vy: 1, vx: (Math.random()-0.5)*2, color: grid[r][c].color, seed: grid[r][c].seed, sinker: grid[r][c].sinker, sinkerVariant: grid[r][c].sinkerVariant, rot: 0 });
         grid[r][c] = null; dropped++;
       }
     }
@@ -2541,7 +2762,6 @@ function checkKillLine() {
 
 function winLevel() {
   gameOver = true;
-  showInterstitialAfterGame();
   playWinJingle();
   setBobaMood('cool');
   const frac = levelConfig.timeLimit > 0 ? levelTimeLeft / levelConfig.timeLimit : 0;
@@ -2562,17 +2782,20 @@ function winLevel() {
   renderEcoPills();
   let adUsed = false;
   showOverlay('Level Complete!', `Score: ${score}`, 'Next Level', () => startLevel(currentLevel + 1), 'Map', showMap, {
-    stars, isNewBest, pearls: pearlsEarned, bobaMood: 'cool', bobaAnim: ['cool', 'wink', 'laugh', 'wink'],
+    completedGame: true, stars, isNewBest, pearls: pearlsEarned, bobaMood: 'cool', bobaAnim: ['cool', 'wink', 'laugh', 'wink'],
     badge: cameCloseToKillLine ? '😅 CLUTCH SAVE! +25' : null,
-    adBtn: { label: '📺 Watch Ad · Double Pearls', onClick: () => {
+    adBtn: { label: '📺 Watch Ad · Double Pearls', onClick: async () => {
       if (adUsed) return;
       adUsed = true;
-      showRewardedAd(() => {
+      let granted = false;
+      await showRewardedAd(() => {
+        granted = true;
         addPearls(pearlsEarned);
         renderEcoPills();
         document.getElementById('overlay').style.display = 'flex';
         document.getElementById('overlayAdBtn').style.display = 'none';
       });
+      if (!granted) adUsed = false;
     } }
   });
 }
@@ -2583,6 +2806,7 @@ function countBubbles() {
 }
 const CONTINUE_COST = 50;
 function grantContinue() {
+  if (endGameTransitionPending || rewardedAdPending) return;
   gameOver = false;
   levelTimeLeft += 20;
   for (let r = grid.length - 1; r >= 0; r--) {
@@ -2599,11 +2823,12 @@ function grantContinue() {
   renderEcoPills();
 }
 function giveUpLevel() {
-  spendLife();
-  renderEcoPills();
-  document.getElementById('overlay').style.display = 'none';
-  showInterstitialAfterGame();
-  showMap();
+  if (!gameOver || appState !== 'playing' || endGameTransitionPending || rewardedAdPending) return;
+  return exitCompletedGame(() => {
+    spendLife();
+    renderEcoPills();
+    showMap();
+  });
 }
 function failLevel(reason) {
   gameOver = true;
@@ -2633,11 +2858,21 @@ function showOverlay(title, sub, primaryLabel, primaryFn, secondaryLabel, second
   document.getElementById('overlaySub').textContent = sub;
   const pBtn = document.getElementById('overlayPrimaryBtn');
   const sBtn = document.getElementById('overlaySecondaryBtn');
-  pBtn.textContent = primaryLabel; pBtn.onclick = primaryFn;
+  let exitUsed = false;
+  const resultExit = fn => () => {
+    if (exitUsed || endGameTransitionPending || rewardedAdPending) return;
+    exitUsed = true;
+    return exitCompletedGame(fn);
+  };
+  const guardedAction = fn => () => {
+    if (endGameTransitionPending || rewardedAdPending) return;
+    return fn();
+  };
+  pBtn.textContent = primaryLabel; pBtn.onclick = opts.completedGame ? resultExit(primaryFn) : guardedAction(primaryFn);
   pBtn.classList.toggle('disabled', !!opts.primaryDisabled);
   if (secondaryLabel) {
     sBtn.style.display = '';
-    sBtn.textContent = secondaryLabel; sBtn.onclick = secondaryFn;
+    sBtn.textContent = secondaryLabel; sBtn.onclick = opts.completedGame ? resultExit(secondaryFn) : guardedAction(secondaryFn);
   } else {
     sBtn.style.display = 'none';
   }
@@ -2677,7 +2912,7 @@ function showOverlay(title, sub, primaryLabel, primaryFn, secondaryLabel, second
   if (opts.adBtn) {
     adBtn.style.display = 'block';
     adBtn.textContent = opts.adBtn.label;
-    adBtn.onclick = opts.adBtn.onClick;
+    adBtn.onclick = guardedAction(opts.adBtn.onClick);
   } else {
     adBtn.style.display = 'none';
   }
@@ -2686,7 +2921,11 @@ function showOverlay(title, sub, primaryLabel, primaryFn, secondaryLabel, second
   if (opts.ghostBtn) {
     ghostBtn.style.display = 'block';
     ghostBtn.textContent = opts.ghostBtn.label;
-    ghostBtn.onclick = opts.ghostBtn.onClick;
+    ghostBtn.onclick = () => {
+      if (endGameTransitionPending || rewardedAdPending || exitUsed) return;
+      exitUsed = true;
+      return opts.ghostBtn.onClick();
+    };
   } else {
     ghostBtn.style.display = 'none';
   }
@@ -2694,7 +2933,7 @@ function showOverlay(title, sub, primaryLabel, primaryFn, secondaryLabel, second
   const lbBtn = document.getElementById('overlayLeaderboardBtn');
   if (opts.leaderboardBtn) {
     lbBtn.style.display = 'block';
-    lbBtn.onclick = openLeaderboard;
+    lbBtn.onclick = guardedAction(openLeaderboard);
   } else {
     lbBtn.style.display = 'none';
   }
@@ -3223,6 +3462,7 @@ function showSettings() {
   setNavActive(null);
 }
 function showShop() {
+  if (endGameTransitionPending || rewardedAdPending) return;
   playMenuBgm();
   appState = 'shop';
   setGameVisible(false);
@@ -3409,11 +3649,11 @@ function draw() {
   for (let r = 0; r < grid.length; r++)
     for (let c = 0; c < colsInRow(r); c++) {
       const cell = grid[r][c];
-      if (cell) drawBubble(cellX(r, c), cellY(r), cell.color, { fuse: cell.fuse, seed: cell.seed, bornAt: cell.bornAt, worried: cell.worriedUntil && cell.worriedUntil > timeNow, chainBoba: cell.chainBoba, goldenPearl: cell.goldenPearl, ice: cell.ice, sinker: cell.sinker });
+      if (cell) drawBubble(cellX(r, c), cellY(r), cell.color, { fuse: cell.fuse, seed: cell.seed, bornAt: cell.bornAt, worried: cell.worriedUntil && cell.worriedUntil > timeNow, chainBoba: cell.chainBoba, goldenPearl: cell.goldenPearl, ice: cell.ice, sinker: cell.sinker, sinkerVariant: cell.sinkerVariant });
     }
 
   for (const b of fallingBubbles) {
-    drawBubble(b.x, b.y, b.color, { scale: Math.max(0.6, 1 - b.rot*0.05), seed: b.seed, bob: false });
+    drawBubble(b.x, b.y, b.color, { scale: Math.max(0.6, 1 - b.rot*0.05), seed: b.seed, bob: false, sinker: b.sinker, sinkerVariant: b.sinkerVariant });
   }
 
   for (const p of powerPickups) {
@@ -3497,7 +3737,7 @@ function draw() {
   // not just sitting on top - width is matched to the pearls' own on-screen size (see below)
   const PEARL_IN_STRAW_SCALE = 1 / LAUNCHER_SCALE;
   const TUBE_HALF_W = RADIUS * PEARL_IN_STRAW_SCALE * 1.08;
-  const TUBE_TOP = -RADIUS * 2.05, TUBE_BASE = 0;
+  const TUBE_TOP = -RADIUS * LAUNCHER_TUBE_UNITS, TUBE_BASE = 0;
   const tubePath = () => { ctx.beginPath(); ctx.roundRect(-TUBE_HALF_W, TUBE_TOP, TUBE_HALF_W * 2, TUBE_BASE - TUBE_TOP, TUBE_HALF_W * 0.12); };
 
   // next pearl sits lower in the tube (near the cup), current pearl near the open tip -
@@ -3556,8 +3796,9 @@ function draw() {
   ctx.beginPath(); ctx.arc(shooterX, shooterY, RADIUS + 9, 0, Math.PI * 2); ctx.stroke();
   ctx.restore();
 
-  document.getElementById('scoreLabel').textContent = `Score: ${score}`;
-  document.getElementById('levelLabel').textContent = appState === 'endless' ? 'ENDLESS' : worldLabel(currentLevel);
+  document.getElementById('scoreLabel').textContent = score.toLocaleString('en-US');
+  document.getElementById('levelLabel').textContent = appState === 'endless' ? 'Endless' : `Level ${worldLabel(currentLevel)}`;
+  document.getElementById('flavorLabel').textContent = appState === 'endless' ? 'FLAVOR MARATHON' : themeForWorld(Math.floor((currentLevel - 1) / LEVELS_PER_WORLD)).name;
   const timerEl = document.getElementById('timerLabel');
   timerEl.textContent = fmtTime(levelTimeLeft);
   const timerDenom = appState === 'endless' ? endlessDropInterval : (levelConfig ? levelConfig.timeLimit : 1);
@@ -3676,9 +3917,17 @@ function setGameVisible(visible) {
   document.getElementById('timerWrap').style.display = visible ? 'flex' : 'none';
   document.getElementById('powerPanel').style.display = visible ? 'grid' : 'none';
   document.getElementById('pauseBtn').style.display = visible ? 'flex' : 'none';
+  // Sound controls remain in Settings and the pause sheet; the journey chrome
+  // reserves its top-right slot for the primary pause control and economy row.
+  document.getElementById('muteBtn').style.display = visible || appState === 'map' ? 'none' : 'flex';
   document.getElementById('bottomNav').style.display = visible ? 'none' : 'flex';
   document.getElementById('bobaMascot').style.display = visible ? 'block' : 'none';
   if (visible) setBobaMood('happy');
+  if (!visible) {
+    document.getElementById('streakLabel').style.display = 'none';
+    document.getElementById('combo').classList.remove('show');
+  }
+  if (visible) { lastFitScale = 0; fitToViewport(); }
 }
 
 // --- Boba mascot moods: [row, col, xNudge] into the 6-col x 6-row sprite sheet.
@@ -3746,6 +3995,7 @@ function maybeShowTutorial() {
 }
 
 function showMenu() {
+  if (endGameTransitionPending || rewardedAdPending) return;
   playMenuBgm();
   appState = 'menu';
   setGameVisible(false);
@@ -3806,10 +4056,16 @@ function buildGalaxyMap() {
 
   const currentTheme = themeForWorld(Math.floor((prog.unlocked - 1) / LEVELS_PER_WORLD));
   const titleEl = document.getElementById('mapWorldTitle');
-  if (titleEl) titleEl.textContent = `World ${Math.floor((prog.unlocked - 1) / LEVELS_PER_WORLD) + 1} · ${currentTheme.name}`;
+  const worldIdx = Math.floor((prog.unlocked - 1) / LEVELS_PER_WORLD);
+  if (titleEl) titleEl.textContent = currentTheme.name;
+  document.querySelector('.mapKicker').textContent = `WORLD ${worldIdx + 1} · FLAVOR JOURNEY`;
+  const completedInWorld = Array.from({ length: LEVELS_PER_WORLD }, (_, i) => worldIdx * LEVELS_PER_WORLD + i + 1).filter(level => (prog.stars && prog.stars[level]) > 0).length;
+  document.getElementById('journeyProgressFill').style.width = `${completedInWorld * 10}%`;
+  document.getElementById('journeyProgressLabel').textContent = `${completedInWorld} of ${LEVELS_PER_WORLD} flavors mastered`;
+  document.getElementById('journeyNextLevel').textContent = `Level ${worldLabel(prog.unlocked)}`;
 
   const positions = [];
-  let y = 50, currentNodeY = 0;
+  let y = 88, currentNodeY = 0;
   for (let w = 0; w < numWorlds; w++) {
     const theme = themeForWorld(w);
     for (let i = 0; i < LEVELS_PER_WORLD; i++) {
@@ -3818,7 +4074,7 @@ function buildGalaxyMap() {
       const xFrac = MAP_X_PATTERN[i % MAP_X_PATTERN.length];
       positions.push({ level, x: xFrac * W, y, theme });
       if (level === prog.unlocked) currentNodeY = y;
-      y += MAP_NODE_STEP_Y;
+      y += MAP_NODE_STEP_Y + (i === LEVELS_PER_WORLD - 1 ? 72 : 0);
     }
   }
   const totalHeight = y + 40;
@@ -3828,27 +4084,36 @@ function buildGalaxyMap() {
 
   const mctx = mapCanvas.getContext('2d');
   mctx.clearRect(0, 0, W, totalHeight);
-  for (let i = 0; i < Math.floor(totalHeight / 5); i++) {
-    mctx.fillStyle = `rgba(122,74,46,${0.08 + Math.random()*0.18})`;
-    mctx.beginPath(); mctx.arc(Math.random()*W, Math.random()*totalHeight, Math.random()*1.3, 0, Math.PI*2); mctx.fill();
+  // Quiet flavor hills frame the route, leaving all existing sky artwork visible.
+  for (let w = 0; w < numWorlds; w++) {
+    const sectionY = 88 + w * (LEVELS_PER_WORLD * MAP_NODE_STEP_Y + 72);
+    const theme = themeForWorld(w);
+    mctx.fillStyle = theme.color;
+    mctx.globalAlpha = 0.16;
+    mctx.beginPath(); mctx.ellipse(-30, sectionY + 250, 180, 290, -0.25, 0, Math.PI * 2); mctx.fill();
+    mctx.beginPath(); mctx.ellipse(W + 30, sectionY + 730, 175, 290, 0.2, 0, Math.PI * 2); mctx.fill();
+    mctx.globalAlpha = 1;
+    if (w > 0) {
+      const chapter = document.createElement('div');
+      chapter.className = 'journeyChapter';
+      chapter.style.top = (sectionY - 83) + 'px';
+      chapter.textContent = `WORLD ${w + 1} · ${theme.name}`;
+      mapNodes.appendChild(chapter);
+    }
   }
-  mctx.setLineDash([1, 16]); mctx.lineCap = 'round';
+  mctx.setLineDash([]); mctx.lineCap = 'round';
   for (let i = 0; i < positions.length - 1; i++) {
     const a = positions[i], b = positions[i + 1];
-    const completed = b.level < prog.unlocked;
-    mctx.lineWidth = completed ? 9 : 7;
-    if (completed) {
-      mctx.strokeStyle = '#FFC24B';
-      mctx.shadowColor = 'rgba(255,196,30,0.65)';
-      mctx.shadowBlur = 10;
-    } else {
-      mctx.strokeStyle = 'rgba(122,74,46,0.35)';
-      mctx.shadowBlur = 0;
-    }
-    mctx.beginPath();
-    mctx.moveTo(a.x, a.y);
-    mctx.lineTo(b.x, b.y);
+    const completed = b.level <= prog.unlocked;
+    mctx.lineWidth = 12;
+    mctx.strokeStyle = completed ? '#fff7ef' : 'rgba(255,247,239,.65)';
+    mctx.beginPath(); mctx.moveTo(a.x, a.y);
+    mctx.bezierCurveTo(a.x, a.y + MAP_NODE_STEP_Y * .6, b.x, b.y - MAP_NODE_STEP_Y * .6, b.x, b.y);
     mctx.stroke();
+    if (completed) {
+      mctx.lineWidth = 3; mctx.strokeStyle = '#b75b42';
+      mctx.setLineDash([2, 9]); mctx.stroke(); mctx.setLineDash([]);
+    }
   }
   mctx.shadowBlur = 0;
 
@@ -3857,7 +4122,10 @@ function buildGalaxyMap() {
     const isCurrent = p.level === prog.unlocked;
     const stars = (prog.stars && prog.stars[p.level]) || 0;
     const bestCombo = (prog.bestCombo && prog.bestCombo[p.level]) || 0;
-    const div = document.createElement('div');
+    const div = document.createElement('button');
+    div.type = 'button';
+    div.disabled = !unlocked;
+    div.setAttribute('aria-label', `Level ${worldLabel(p.level)}, ${isCurrent ? 'play next' : unlocked ? 'unlocked' : 'locked'}, ${stars} stars`);
     div.className = 'levelNode ' + (unlocked ? 'unlocked' : 'locked') + (isCurrent ? ' current' : '');
     div.style.left = p.x + 'px';
     div.style.top = p.y + 'px';
@@ -3865,7 +4133,7 @@ function buildGalaxyMap() {
     inner.className = 'levelNodeInner';
     inner.style.background = unlocked
       ? `radial-gradient(circle at 35% 30%, ${shadeColor(p.theme.color, 35)}, ${p.theme.color} 55%, ${shadeColor(p.theme.color, -28)} 100%)`
-      : `radial-gradient(circle at 35% 30%, #5a5a66, #26262e 100%)`;
+      : '#dfd2c1';
     inner.style.animationDelay = `-${(idx * 0.37) % 3.2}s`;
     inner.innerHTML = unlocked ? `<span>${p.level}</span>` : '🔒';
     div.appendChild(inner);
@@ -3904,8 +4172,8 @@ function buildGalaxyMap() {
       const marker = document.createElement('div');
       marker.className = 'levelMascotMarker';
       marker.style.left = p.x + 'px';
-      marker.style.top = (p.y - MAP_PLANET_R - 42) + 'px';
-      marker.textContent = '🧋';
+      marker.style.top = (p.y - MAP_PLANET_R - 28) + 'px';
+      marker.textContent = 'PLAY NEXT';
       mapNodes.appendChild(marker);
     }
   });
@@ -3917,6 +4185,7 @@ function buildGalaxyMap() {
 }
 
 function showMap() {
+  if (endGameTransitionPending || rewardedAdPending) return;
   playMenuBgm();
   appState = 'map';
   setGameVisible(false);
@@ -3954,17 +4223,24 @@ function closePause() {
   document.getElementById('pauseOverlay').style.display = 'none';
 }
 function restartFromPause() {
+  if (appState !== 'paused' || endGameTransitionPending || rewardedAdPending) return;
+  const mode = pausedFromState, lvl = currentLevel;
   document.getElementById('pauseOverlay').style.display = 'none';
-  if (pausedFromState === 'endless') { startEndless(); return; }
-  const lvl = currentLevel;
-  spendLife(); renderEcoPills();
-  startLevel(lvl);
+  return exitCompletedGame(() => {
+    if (mode === 'endless') { startEndless(); return; }
+    spendLife(); renderEcoPills();
+    startLevel(lvl);
+  });
 }
 function quitFromPause() {
+  if (appState !== 'paused' || endGameTransitionPending || rewardedAdPending) return;
+  const mode = pausedFromState;
   document.getElementById('pauseOverlay').style.display = 'none';
-  if (pausedFromState === 'endless') { showMenu(); return; }
-  spendLife(); renderEcoPills();
-  showMap();
+  return exitCompletedGame(() => {
+    if (mode === 'endless') { showMenu(); return; }
+    spendLife(); renderEcoPills();
+    showMap();
+  });
 }
 function renderPauseToggles() {
   document.getElementById('pauseMusicBtn').classList.toggle('on', !bgmMuted);
@@ -4060,10 +4336,13 @@ const HOWTO_POWER_DESCS = {
   [SWAP]: 'Swaps your current pearl with the next one up.'
 };
 const HOWTO_SPECIALS = [
-  { icon: '⚡', name: 'Chain Boba', blurb: "Pops in a small chain reaction when cleared - don't stand too close!" },
-  { icon: '⭐', name: 'Golden Pearl', blurb: 'A lucky pearl - pop it for bonus pearls.' },
-  { icon: '🧊', name: 'Ice Cube', blurb: 'Frozen solid - pop bubbles next to it to melt it free.' },
-  { icon: '⚓', name: 'Frozen Sinker', blurb: 'A clumped-up clump - hit it twice (from any angle) to drop it.' }
+  { color: '#FF6FA5', opts: { chainBoba: true }, name: 'Chain Boba', blurb: 'Clearing it triggers a small chain reaction.' },
+  { color: '#FFB648', opts: { goldenPearl: true }, name: 'Golden Pearl', blurb: 'Pop this lucky pearl for bonus pearls.' },
+  { color: '#FF6FA5', opts: { ice: 2 }, name: 'Ice Cube', blurb: 'Pop adjacent pearls to thaw its two layers, then match the pearl inside.' },
+  { color: '#C17F3E', opts: { sinker: 2, sinkerVariant: 'slate' }, name: 'Frozen Sinker', blurb: 'Pop adjacent pearls to clear two hits and drop this clump. Direct shots do not damage it.' },
+  { color: '#C17F3E', opts: { sinker: 2, sinkerVariant: 'blue', sinkerPose: 0 }, name: 'Blue Frozen Sinker', blurb: 'Two adjacent popped pearls clear this clump. A single combo can do both hits; direct shots do not damage it.' },
+  { color: '#C17F3E', opts: { sinker: 2, sinkerVariant: 'clear', sinkerPose: 0 }, name: 'Clear Frozen Sinker', blurb: 'The same two-hit obstacle in a glassy form. Pop neighboring pearls to drop it; direct shots do not damage it.' },
+  { color: STONE, name: 'Stone', blurb: 'Cannot be matched directly. Clear the pearls supporting it to make it fall.' }
 ];
 const HOWTO_PEARLS = [
   { color: '#C17F3E', name: 'Pearl Boba', blurb: 'The chill one. Never rattled, always steady.' },
@@ -4072,6 +4351,21 @@ const HOWTO_PEARLS = [
   { color: '#FFB648', name: 'Orange Boba', blurb: 'The anxious one - holds his breath near the danger line.' },
   { color: '#B28CFF', name: 'Purple Boba', blurb: 'Royalty vibes. Dreamy, a bit extra, always sparkling.' }
 ];
+const howToArtCache = new Map();
+function howToBubbleArt(color, opts = {}) {
+  const key = color + JSON.stringify(opts);
+  if (!howToArtCache.has(key)) {
+    const preview = document.createElement('canvas');
+    preview.width = preview.height = 84;
+    drawBubble(42, 42, color, Object.assign({ context: preview.getContext('2d'), radius: 28, bob: false, seed: 0 }, opts));
+    howToArtCache.set(key, preview.toDataURL('image/png'));
+  }
+  return `<img src="${howToArtCache.get(key)}" alt="">`;
+}
+[pearlSprite, sinkerAtlas].forEach(sprite => sprite.addEventListener('load', () => {
+  howToArtCache.clear();
+  if (document.getElementById('howToOverlay').style.display !== 'none') renderHowTo();
+}));
 function howToRow(iconHtml, name, blurb) {
   return `<div class="howToRow"><span class="howToIcon">${iconHtml}</span>
     <span class="howToText"><span class="howToName">${name}</span><span class="howToDesc">${blurb}</span></span></div>`;
@@ -4082,9 +4376,9 @@ function renderHowTo() {
     '<div class="howToSectionTitle">Power-Ups</div>' +
     POWER_DEFS.map(d => howToRow(`<img src="${d.img}" alt="">`, d.name, HOWTO_POWER_DESCS[d.key] || '')).join('') +
     '<div class="howToSectionTitle">Specials You\'ll See</div>' +
-    HOWTO_SPECIALS.map(s => howToRow(s.icon, s.name, s.blurb)).join('') +
+    HOWTO_SPECIALS.map(s => howToRow(s.img ? `<img src="${s.img}" alt=""${s.transparent ? ' style="opacity:.82"' : ''}>` : howToBubbleArt(s.color, s.opts), s.name, s.blurb)).join('') +
     '<div class="howToSectionTitle">Meet the Pearls</div>' +
-    HOWTO_PEARLS.map(p => howToRow(`<span style="display:block;width:100%;height:100%;border-radius:50%;background:${p.color};"></span>`, p.name, p.blurb)).join('');
+    HOWTO_PEARLS.map(p => howToRow(howToBubbleArt(p.color), p.name, p.blurb)).join('');
 }
 function openHowTo() {
   renderHowTo();
@@ -4231,6 +4525,7 @@ function resetRuntimeState() {
 }
 
 function startLevel(level) {
+  if (endGameTransitionPending || rewardedAdPending) return;
   currentLevel = level;
   playGameplayBgm();
   currentWorldColor = themeForWorld(Math.floor((level - 1) / LEVELS_PER_WORLD)).color;
@@ -4253,6 +4548,7 @@ function startLevel(level) {
 }
 
 function startEndless() {
+  if (endGameTransitionPending || rewardedAdPending) return;
   endlessTrackIndex = Math.floor(Math.random() * gameplayTracks.length);
   currentWorldColor = WORLD_THEMES[0].color;
   levelConfig = Object.assign({ rows: 5, lineDrops: 0, timeLimit: 0 }, endlessDifficultyFor(0));
@@ -4281,7 +4577,6 @@ function endlessFinalScore() {
 
 function failEndless() {
   gameOver = true;
-  showInterstitialAfterGame();
   sfxFail();
   setBobaMood('crying');
   const finalScore = endlessFinalScore();
@@ -4292,7 +4587,7 @@ function failEndless() {
   lastEndlessScore = finalScore;
   submitOnlineScore(finalScore).catch(() => {});
   showOverlay('Run Over!', `Final Score: ${finalScore} · ${fmtTime(endlessElapsed)} survived`, 'Try Again', () => startEndless(), 'Menu', showMenu, {
-    badge: isNewLocalBest ? '🏆 NEW PERSONAL BEST!' : null,
+    completedGame: true, badge: isNewLocalBest ? '🏆 NEW PERSONAL BEST!' : null,
     leaderboardBtn: true,
     bobaMood: 'crying', bobaAnim: ['crying', 'sad']
   });
@@ -4450,6 +4745,7 @@ document.getElementById('muteBtn').addEventListener('click', toggleBgmMute);
 document.getElementById('dailyGiftBtn').addEventListener('click', showDailyOverlay);
 document.getElementById('homeLeaderboardBtn').addEventListener('click', openLeaderboard);
 document.getElementById('pauseBtn').addEventListener('click', openPause);
+document.getElementById('journeyContinue').addEventListener('click', () => openToppings(loadProgress().unlocked));
 document.getElementById('resumeBtn').addEventListener('click', closePause);
 document.getElementById('restartBtn').addEventListener('click', restartFromPause);
 document.getElementById('quitBtn').addEventListener('click', quitFromPause);
@@ -4466,21 +4762,100 @@ document.getElementById('onbSkipBtn').addEventListener('click', finishOnboarding
 document.getElementById('onbNextBtn').addEventListener('click', advanceOnboarding);
 document.getElementById('seeIntroBtn').addEventListener('click', () => showIntroVideo(() => {}));
 
-// --- mobile-responsive scaling: fixed 480x720 virtual resolution, scaled to fit any screen ---
+// --- Uniform sprite scaling with viewport-sized scene extents and native-safe chrome. ---
 const wrapEl = document.getElementById('wrap');
 let lastFitScale = 0;
+let lastFitSignature = "";
+let orientationAutoPaused = false;
 function fitToViewport() {
   const vw = window.innerWidth, vh = window.innerHeight;
-  const scale = Math.min(vw / W, vh / H, 1.4);
+  const landscape = vw > vh && vh < 600;
+  document.getElementById('portraitPrompt').style.display = landscape ? 'flex' : 'none';
+  wrapEl.inert = landscape || endGameTransitionPending || rewardedAdPending;
+  if (landscape && isGameplay() && !gameOver) {
+    orientationAutoPaused = true;
+    openPause();
+  } else if (!landscape && orientationAutoPaused) {
+    orientationAutoPaused = false;
+    closePause();
+  }
+  const scale = Math.min(vw / BASE_W, vh / BASE_H, 1.4);
+  const rootStyle = getComputedStyle(document.documentElement);
+  const insets = {};
+  for (const edge of ['top','right','bottom','left']) {
+    const nativeInset = rootStyle.getPropertyValue('--safe-area-inset-' + edge).trim();
+    const probe = document.getElementById('safeAreaProbe');
+    insets[edge] = nativeInset ? parseFloat(nativeInset) || 0 : parseFloat(getComputedStyle(probe)['padding' + edge[0].toUpperCase() + edge.slice(1)]) || 0;
+  }
+  const signature = [vw,vh,...Object.values(insets)].join(':');
   // some Android WebViews (seen on certain Huawei/Honor builds) report a stale innerWidth/
   // innerHeight right after the activity is forced into portrait on launch, and never fire a
   // real 'resize'/visualViewport 'resize' afterward once it settles - so on top of the normal
   // listeners below, this also gets re-checked every frame from loop() as a cheap safety net
   // (skip the DOM write entirely when nothing changed, so idle frames don't thrash layout).
-  if (Math.abs(scale - lastFitScale) < 0.001) return;
+  if (lastFitScale && signature === lastFitSignature) return;
+  lastFitSignature = signature;
   lastFitScale = scale;
+  const oldW = W, oldTop = TOP_MARGIN, oldRadius = RADIUS;
+  W = vw / scale; H = vh / scale;
+  wrapEl.style.width = W + 'px'; wrapEl.style.height = H + 'px';
+  for (const edge of ['top','right','bottom','left']) wrapEl.style.setProperty('--scene-safe-' + edge, insets[edge] / scale + 'px');
+  wrapEl.style.setProperty('--safe-b', insets.bottom / scale + 'px');
+  canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  wrapEl.style.setProperty('--touch-size', Math.max(44, 44 / scale) + 'px');
+  wrapEl.style.setProperty('--nav-height', Math.max(64, 44 / scale + 12) + 'px');
+  // Reserve the actual chrome height, including reported safe areas and small-screen
+  // touch targets, before placing any board pearls. Geometry uses the same origin.
+  const hudEl = document.getElementById('hud');
+  if (hudEl.offsetHeight) {
+    const streakEl = document.getElementById('streakLabel');
+    const streakStyle = getComputedStyle(streakEl);
+    // Reserve the badge even before its first streak. Explicit line height lets
+    // hidden and visible states use identical geometry, with room for pearl bobbing.
+    const streakHeight = Math.max(streakEl.offsetHeight,
+      parseFloat(streakStyle.lineHeight) + parseFloat(streakStyle.paddingTop) + parseFloat(streakStyle.paddingBottom));
+    const streakBottom = parseFloat(streakStyle.top) + streakHeight;
+    TOP_MARGIN = Math.max(170, hudEl.offsetTop + hudEl.offsetHeight + 36, streakBottom + 8);
+  }
+  // Bottom chrome is anchored above the native navigation inset. The launcher and
+  // cup move together, keeping their artwork entirely below the loss boundary.
+  const toolbar = document.getElementById('powerPanel');
+  const toolbarInset = insets.bottom / scale;
+  const toolbarHeight = Math.max(toolbar.offsetHeight, 44 / scale + 4);
+  const mascot = document.getElementById('bobaMascot');
+  const mascotHeight = 137;
+  const mascotTop = Math.min(707 + H - BASE_H, H - toolbarInset - toolbarHeight - mascotHeight - 12);
+  mascot.style.top = mascotTop + 'px';
+  mascot.style.height = mascotHeight + 'px';
+  mascot.style.width = '220px';
+  if (mascot.offsetWidth && bobaMood) renderMoodInto(mascot, bobaMood);
+  shooterX = W / 2;
+  shooterY = mascotTop + 47;
+  KILL_LINE_Y = mascotTop - 25;
+  // Notched screens can consume both ends of the scene. Keep all twelve rows
+  // and the same loss boundary, fitting pearl geometry into the remaining space.
+  // A twelve-row board ends at TOP_MARGIN + (11 * 1.75 + 2) * radius;
+  // the straw starts at shooterY - LAUNCHER_TUBE_UNITS * LAUNCHER_SCALE * radius.
+  const boardAndStrawUnits = 11 * 1.75 + 2 + LAUNCHER_TUBE_UNITS * LAUNCHER_SCALE;
+  RADIUS = Math.max(8, Math.min(20, (shooterY - TOP_MARGIN - 10) / boardAndStrawUnits, (KILL_LINE_Y - TOP_MARGIN - 24) / (11 * 1.75 + 2)));
+  DIAM = RADIUS * 2;
+  ROW_H = RADIUS * 1.75;
+  LEFT_MARGIN = (W - COLS * DIAM) / 2;
+  // Existing board cells remain centered when the viewport expands horizontally.
+  // Projectiles retain their location relative to the launcher during resize.
+  if (flying) {
+    flying.x = W / 2 + (flying.x - oldW / 2) * RADIUS / oldRadius;
+    flying.y = TOP_MARGIN + (flying.y - oldTop) * RADIUS / oldRadius;
+  }
+  for (const effect of [...particles, ...fallingBubbles, ...texts, ...rings]) {
+    if (typeof effect.x === 'number') effect.x += (W - oldW) / 2;
+  }
   wrapEl.style.transform = `scale(${scale})`;
+  if (appState === 'map') buildGalaxyMap();
 }
+new MutationObserver(fitToViewport).observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'class'] });
 window.addEventListener('resize', fitToViewport);
 window.addEventListener('orientationchange', fitToViewport);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', fitToViewport);

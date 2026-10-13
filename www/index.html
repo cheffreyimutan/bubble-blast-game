@@ -1364,8 +1364,28 @@ function admobAvailable() {
   try { return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob); }
   catch (e) { return false; }
 }
+// Runs once, before the first ad request of any kind. The plugin's AdmobConsentStatus enum
+// values ('NOT_REQUIRED' | 'OBTAINED' | 'REQUIRED' | 'UNKNOWN') are plain strings, so this plain
+// <script> (no bundler/module graph to import the enum from) just compares against the literal.
+async function ensureAdConsent() {
+  if (!admobAvailable()) return;
+  try {
+    const AdMobPlugin = window.Capacitor.Plugins.AdMob;
+    const consentInfo = await AdMobPlugin.requestConsentInfo();
+    if (consentInfo && consentInfo.status === 'REQUIRED') {
+      await AdMobPlugin.showConsentForm();
+    }
+  } catch (e) {
+    // consent lookup/form failed (no network, UMP not configured, etc.) - never block ad init over it
+  }
+}
+async function showAdConsentOptions() {
+  if (!admobAvailable()) return;
+  try { await window.Capacitor.Plugins.AdMob.showPrivacyOptionsForm(); } catch (e) {}
+}
 async function initAdsIfAvailable() {
   if (!admobAvailable()) return;
+  await ensureAdConsent();
   try { await window.Capacitor.Plugins.AdMob.initialize({ initializeForTesting: true }); } catch (e) {}
 }
 // Remove Ads entitlement - real Play Billing purchase isn't wired up yet (see the shop's
@@ -1374,6 +1394,9 @@ async function initAdsIfAvailable() {
 // purchase later is a one-line change, not a hunt through every ad call site.
 let removeAdsPurchased = false;
 try { removeAdsPurchased = localStorage.getItem('bubbleBlastRemoveAds') === '1'; } catch (e) {}
+// Called only from the three paths where a game actually ends (level win, level given up,
+// endless run over) - never from a retry/continue prompt or a power-up - so a player sees at
+// most one interstitial per played game instead of one per overlay shown.
 async function showInterstitialAfterGame() {
   if (removeAdsPurchased || !admobAvailable()) return;
   try {
@@ -2909,6 +2932,7 @@ function renderSettingsToggles() {
     <div class="settingsGroupLabel">ACCOUNT &amp; HELP</div>
     <div class="settingsGroup">
       <button class="settingsLink" id="rateUsLink">Rate Us <span class="chev">›</span></button>
+      <button class="settingsLink" id="adConsentLink">Manage Ad Consent <span class="chev">›</span></button>
       <button class="settingsLink" id="resetProgressLink" style="color:#C0392B;">Reset Progress <span class="chev">›</span></button>
     </div>
     <div class="settingsVersion">Pop-A-Boba v1.0.0</div>`;
@@ -2919,6 +2943,7 @@ function renderSettingsToggles() {
   const signInBtn = document.getElementById('signInPlayGamesBtn');
   if (signInBtn) signInBtn.addEventListener('click', signInToPlayGames);
   document.getElementById('rateUsLink').addEventListener('click', () => showComingSoon('Rate Us'));
+  document.getElementById('adConsentLink').addEventListener('click', showAdConsentOptions);
   document.getElementById('resetProgressLink').addEventListener('click', confirmResetProgress);
 }
 

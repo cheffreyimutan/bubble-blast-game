@@ -1388,10 +1388,10 @@ async function initAdsIfAvailable() {
   await ensureAdConsent();
   try { await window.Capacitor.Plugins.AdMob.initialize({ initializeForTesting: true }); } catch (e) {}
 }
-// Remove Ads entitlement - real Play Billing purchase isn't wired up yet (see the shop's
-// buyStub for Remove Ads), so this only ever becomes true once that's actually built; for now
-// it just gives the gating logic below a single, honest place to live so wiring in a real
-// purchase later is a one-line change, not a hunt through every ad call site.
+// Remove Ads entitlement - set by a real Play Billing purchase (see buyRemoveAds/restorePurchasesFlow
+// below, near the shop's billing code) and persisted locally so it survives app restarts without a
+// network round-trip on every launch; restorePurchasesFlow() re-derives it from Google Play directly
+// if this local copy is ever missing (new device, cleared data, etc).
 let removeAdsPurchased = false;
 try { removeAdsPurchased = localStorage.getItem('bubbleBlastRemoveAds') === '1'; } catch (e) {}
 // Called only from the three paths where a game actually ends (level win, level given up,
@@ -2762,8 +2762,143 @@ function buyStarterPack() {
   renderEcoPills();
   showOverlay('Starter Pack!', '+500 pearls and +10 of every power-up added.', 'Nice', showShop);
 }
-function buyStub(label) {
-  showOverlay(label, 'Coming soon! This needs real payment processing, which isn\'t wired up yet.', 'Close', showShop);
+// --- Google Play Billing: Remove Ads (non-consumable) + Coin Top Up (consumable) ---------------
+// Path chosen: (a), an existing Capacitor plugin - NOT a custom native plugin (path b) and NOT
+// capacitor-plugin-cdv-purchase (already rejected - see this story's brief). Picked
+// @capgo/native-purchases (added to package.json; `npm install && npx cap sync` drops its real
+// Android Gradle module into android/capacitor.settings.gradle, exactly the way
+// @capacitor-community/admob and @modbender/capacitor-play-games already are in that file) because
+// its definitions.d.ts (node_modules/@capgo/native-purchases/dist/esm/definitions.d.ts) exposes
+// everything this story needs in one place: getProducts (query), purchaseProduct (buy, with an
+// isConsumable flag), acknowledgePurchase + consumePurchase (the two different Play Billing
+// finish-paths for non-consumables vs consumables), and restorePurchases + getPurchases (restore).
+// Confirmed - by reading the installed package, not assuming - that it needs NO import statement
+// here, matching this file's no-bundler/plain-<script> setup and the exact pattern admobAvailable()/
+// playGamesAvailable() above already use for their own plugins:
+//   - dist/esm/index.js: `registerPlugin('NativePurchases', {...})` - that call is what creates
+//     window.Capacitor.Plugins.NativePurchases; the exported JS object *is* that same proxy, so
+//     importing the npm package buys nothing a plain window.Capacitor.Plugins.NativePurchases
+//     lookup doesn't already give us for free once the native plugin is registered.
+//   - android/.../NativePurchasesPlugin.java: `@CapacitorPlugin(name = "NativePurchases")` -
+//     confirms the native side registers under that identical name.
+// So on a real Android build window.Capacitor.Plugins.NativePurchases is reachable with zero
+// imports; in this dev/browser context (and on a web build generally) it's simply absent, which is
+// what billingAvailable() below detects.
+const REMOVE_ADS_PRODUCT_ID = 'remove_ads'; // one-time/non-consumable Managed Product - must be
+// created with this exact ID in Play Console > Monetize > Products > In-app products before
+// shipping; purchases against it fail ("item not found") until it exists there. No real product
+// needs to exist in Play Console for this story's acceptance criteria.
+const COIN_TOPUP_PRODUCT_ID = 'coins_250'; // consumable Managed Product (grants +250 coins each
+// time it's bought *and* consumed) - also must be created in Play Console first, marked consumable.
+function billingAvailable() {
+  try { return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.NativePurchases); }
+  catch (e) { return false; }
+}
+function finishRemoveAdsPurchase() {
+  removeAdsPurchased = true;
+  try { localStorage.setItem('bubbleBlastRemoveAds', '1'); } catch (e) {}
+}
+async function buyRemoveAds() {
+  if (removeAdsPurchased) {
+    showOverlay('Remove Ads', 'You already own this - ads are off for good.', 'OK', showShop);
+    return;
+  }
+  if (!billingAvailable()) {
+    showOverlay('Purchases unavailable', 'Google Play Billing isn\'t available here - this only works on the installed Android app.', 'OK', showShop);
+    return;
+  }
+  showOverlay('Remove Ads', 'Talking to Google Play…', 'Please wait', () => {}, null, null, { primaryDisabled: true });
+  try {
+    const Billing = window.Capacitor.Plugins.NativePurchases;
+    const transaction = await Billing.purchaseProduct({
+      productIdentifier: REMOVE_ADS_PRODUCT_ID,
+      productType: 'inapp',
+      isConsumable: false,
+      autoAcknowledgePurchases: false
+    });
+    if (transaction && transaction.purchaseToken) {
+      // Non-consumable: acknowledge (never consume) - an unacknowledged Play Billing purchase is
+      // auto-refunded after 3 days, and consuming a non-consumable would let it be bought again.
+      await Billing.acknowledgePurchase({ purchaseToken: transaction.purchaseToken });
+    }
+    finishRemoveAdsPurchase();
+    buildShopCards();
+    showOverlay('Remove Ads', 'Ads removed - thanks for your support!', 'Nice', showShop);
+  } catch (e) {
+    const cancelled = /cancel/i.test((e && e.message) || '');
+    showOverlay(cancelled ? 'Remove Ads' : 'Purchase failed', cancelled ? 'Purchase cancelled.' : 'Something went wrong completing that purchase. Please try again.', 'OK', showShop);
+  }
+}
+async function buyCoinsTopUp() {
+  if (!billingAvailable()) {
+    showOverlay('Purchases unavailable', 'Google Play Billing isn\'t available here - this only works on the installed Android app.', 'OK', showShop);
+    return;
+  }
+  showOverlay('250 Coins', 'Talking to Google Play…', 'Please wait', () => {}, null, null, { primaryDisabled: true });
+  try {
+    const Billing = window.Capacitor.Plugins.NativePurchases;
+    const transaction = await Billing.purchaseProduct({
+      productIdentifier: COIN_TOPUP_PRODUCT_ID,
+      productType: 'inapp',
+      isConsumable: true,
+      autoAcknowledgePurchases: false
+    });
+    if (!transaction || !transaction.purchaseToken) throw new Error('Purchase did not return a purchase token');
+    // Consumable: consume (acknowledges + clears ownership in one native call) so the coins can be
+    // bought again right away - contrast with Remove Ads' acknowledgePurchase above, which never
+    // consumes since that would let a one-time purchase be rebought.
+    await Billing.consumePurchase({ purchaseToken: transaction.purchaseToken });
+    addCoins(250);
+    renderEcoPills();
+    showOverlay('250 Coins', '+250 coins added to your wallet!', 'Nice', showShop);
+  } catch (e) {
+    const cancelled = /cancel/i.test((e && e.message) || '');
+    showOverlay(cancelled ? '250 Coins' : 'Purchase failed', cancelled ? 'Purchase cancelled.' : 'Something went wrong completing that purchase. Please try again.', 'OK', showShop);
+  }
+}
+// Re-derives removeAdsPurchased from Google Play directly, rather than trusting only the local
+// flag - covers reinstalls, cleared app data, and a second device signed into the same account.
+// Idempotent: getPurchases() is a read, and finishRemoveAdsPurchase() just re-sets the same local
+// flag/value, so running this twice in a row never double-grants anything and never charges.
+async function restorePurchasesFlow() {
+  if (!billingAvailable()) {
+    showOverlay('Restore Purchases', 'Google Play Billing isn\'t available here - this only works on the installed Android app.', 'OK', showSettings);
+    return;
+  }
+  showOverlay('Restore Purchases', 'Checking Google Play for past purchases…', 'Please wait', () => {}, null, null, { primaryDisabled: true });
+  try {
+    const Billing = window.Capacitor.Plugins.NativePurchases;
+    await Billing.restorePurchases();
+    const { purchases } = await Billing.getPurchases({ productType: 'inapp' });
+    const owned = Array.isArray(purchases) && purchases.some(p => p && p.productIdentifier === REMOVE_ADS_PRODUCT_ID);
+    if (owned && !removeAdsPurchased) finishRemoveAdsPurchase();
+    renderSettingsToggles();
+    showOverlay('Restore Purchases', owned ? 'Remove Ads has been restored to this account.' : 'No previous purchases found for this account.', 'OK', showSettings);
+  } catch (e) {
+    showOverlay('Restore Purchases', 'Could not reach Google Play. Check your connection and try again.', 'OK', showSettings);
+  }
+}
+// Best-effort live pricing from the Play Store - the shop's static "$x.xx" labels are the fallback
+// whenever this can't run (dev/browser, offline, or the product IDs aren't created in Play Console
+// yet), so a failed/empty query is expected pre-launch and is never surfaced as an error.
+function updateShopBillingPrices() {
+  if (!billingAvailable()) return;
+  window.Capacitor.Plugins.NativePurchases.getProducts({
+    productIdentifiers: [REMOVE_ADS_PRODUCT_ID, COIN_TOPUP_PRODUCT_ID],
+    productType: 'inapp'
+  }).then(({ products }) => {
+    if (!Array.isArray(products)) return;
+    const removeAdsProduct = products.find(p => p.identifier === REMOVE_ADS_PRODUCT_ID);
+    const coinsProduct = products.find(p => p.identifier === COIN_TOPUP_PRODUCT_ID);
+    const noAdsBtn = document.getElementById('buyNoAdsBtn');
+    if (noAdsBtn && !removeAdsPurchased && removeAdsProduct && removeAdsProduct.priceString) {
+      noAdsBtn.textContent = removeAdsProduct.priceString;
+    }
+    const coinsBtn = document.getElementById('buyCoinsBtn');
+    if (coinsBtn && coinsProduct && coinsProduct.priceString) {
+      coinsBtn.textContent = coinsProduct.priceString;
+    }
+  }).catch(() => {});
 }
 // --- hearts: a direct pearl-priced top-up, plus one free ad-watch per real calendar day -
 // same cooldown pattern as the daily gift, but tracked under its own storage key so the two
@@ -2809,7 +2944,6 @@ function buyPearlExchange() {
   renderEcoPills();
   showOverlay('Exchanged!', `+${PEARL_EXCHANGE_RATE.pearls} pearls added to your wallet.`, 'Nice', showShop);
 }
-const REMOVE_ADS_COST = 150;
 function buildShopCards() {
   const el = document.getElementById('shopCards');
   const adReady = canWatchAdForHeart();
@@ -2864,19 +2998,20 @@ function buildShopCards() {
     <div class="shopSectionLabel">Remove Ads</div>
     <div class="shopCard">
       <div class="icon"><img src="icons/icon-removeads.png" alt=""></div>
-      <div class="info"><div class="title">Remove Ads</div><div class="sub">= ${REMOVE_ADS_COST} coins</div></div>
-      <button class="buy" style="background:var(--mint);color:var(--mint-ink);box-shadow:0 4px 0 var(--mint-sh);" id="buyNoAdsBtn">${REMOVE_ADS_COST} 🪙</button>
+      <div class="info"><div class="title">Remove Ads</div><div class="sub">${removeAdsPurchased ? 'Purchased - enjoy an ad-free game' : 'One-time purchase'}</div></div>
+      <button class="buy" style="background:var(--mint);color:var(--mint-ink);box-shadow:0 4px 0 var(--mint-sh);" id="buyNoAdsBtn">${removeAdsPurchased ? 'Owned' : '$2.99'}</button>
     </div>`;
   document.getElementById('buyHeartBtn').onclick = buyHeart;
   document.getElementById('watchAdHeartBtn').onclick = watchAdForHeart;
   document.getElementById('buyBundleBtn').onclick = buyBoosterBundle;
-  document.getElementById('buyCoinsBtn').onclick = () => buyStub('Top Up Coins');
+  document.getElementById('buyCoinsBtn').onclick = buyCoinsTopUp;
   document.getElementById('buyExchangeBtn').onclick = buyPearlExchange;
-  document.getElementById('buyNoAdsBtn').onclick = () => buyStub('Remove Ads');
+  document.getElementById('buyNoAdsBtn').onclick = buyRemoveAds;
   document.getElementById('buyStarterBtn').onclick = buyStarterPack;
   el.querySelectorAll('.buySingle').forEach(btn => {
     btn.addEventListener('click', () => buySinglePower(btn.dataset.key));
   });
+  updateShopBillingPrices();
 }
 function toggleSfxMuted() { sfxMuted = !sfxMuted; saveSettings(); renderSettingsToggles(); }
 function toggleMusicMuted() { toggleBgmMute(); }
@@ -2931,6 +3066,7 @@ function renderSettingsToggles() {
     </div>
     <div class="settingsGroupLabel">ACCOUNT &amp; HELP</div>
     <div class="settingsGroup">
+      <button class="settingsLink" id="restorePurchasesLink">Restore Purchases <span class="chev">›</span></button>
       <button class="settingsLink" id="rateUsLink">Rate Us <span class="chev">›</span></button>
       <button class="settingsLink" id="adConsentLink">Manage Ad Consent <span class="chev">›</span></button>
       <button class="settingsLink" id="resetProgressLink" style="color:#C0392B;">Reset Progress <span class="chev">›</span></button>
@@ -2942,6 +3078,7 @@ function renderSettingsToggles() {
   document.getElementById('editNicknameLink').addEventListener('click', () => promptNickname(renderSettingsToggles, true));
   const signInBtn = document.getElementById('signInPlayGamesBtn');
   if (signInBtn) signInBtn.addEventListener('click', signInToPlayGames);
+  document.getElementById('restorePurchasesLink').addEventListener('click', restorePurchasesFlow);
   document.getElementById('rateUsLink').addEventListener('click', () => showComingSoon('Rate Us'));
   document.getElementById('adConsentLink').addEventListener('click', showAdConsentOptions);
   document.getElementById('resetProgressLink').addEventListener('click', confirmResetProgress);

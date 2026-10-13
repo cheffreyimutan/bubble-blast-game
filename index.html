@@ -11,11 +11,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Chewy&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    /* some WebView builds (seen on certain Huawei/Honor devices) report a wildly inflated
-       var(--safe-b) even with no gesture nav bar present, which bloats every
-       layout that adds it in raw - capped once here so a bad reading can't blow up the whole
-       bottom nav/HUD, while real (small) insets on gesture-nav devices still come through. */
-    --safe-b: min(env(safe-area-inset-bottom), 24px);
+    /* fitToViewport converts native physical insets into uniform scene units. */
+    --safe-b: 0px;
     --outer: #1E130D;
     --cream1: #FCF1E2; --cream2: #F4DEC3; --cream3: #EAC8A2;
     --ink: #3B2418; --muted-ink: #7A5A45; --soft-ink: #9C6B4B;
@@ -38,10 +35,7 @@
   button, input, select, textarea { font-family: inherit; color: inherit; }
   html, body {
     margin: 0; width: 100%; height: 100%;
-    /* matches #wrap's own top gradient color, not a neutral dark shade - on phones taller/
-       narrower than our 390×928 scene, the uniform-scale fit (see fitToViewport) can
-       leave a sliver of body visible past #wrap's bottom or sides, and a plain dark background
-       there used to look like a broken black bar instead of a seamless edge. */
+    /* The viewport-sized scene covers this startup background after its first fit. */
     background: var(--cream1);
     display: flex; align-items: flex-start; justify-content: center;
     font-family: 'Nunito', system-ui, sans-serif;
@@ -68,9 +62,9 @@
   /* Shared HUD defaults. Flavor Journey overrides below reserve separate
      level/score/pause and timer rows; streak feedback stays outside the HUD. */
   #hud {
-    position: absolute; top: calc(20px + env(safe-area-inset-top)); left: 0; right: 0;
+    position: absolute; top: calc(20px + var(--scene-safe-top, 0px)); left: 0; right: 0;
     display: none; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
-    padding: 0 calc(56px + env(safe-area-inset-right)) 0 calc(16px + env(safe-area-inset-left));
+    padding: 0 calc(56px + var(--scene-safe-right, 0px)) 0 calc(16px + var(--scene-safe-left, 0px));
     pointer-events: none;
   }
   #levelLabel { justify-self: start; }
@@ -94,7 +88,7 @@
      badge); setting display:none in this rule would make that same clear-the-inline-style
      trick a no-op; since the stylesheet's own display would still say none underneath it. */
   #streakLabel {
-    position: absolute; top: calc(58px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+    position: absolute; top: calc(58px + var(--scene-safe-top, 0px)); left: 50%; transform: translateX(-50%);
     z-index: 2; pointer-events: none;
     color: #fff; font-size: 13px; font-weight: 800; letter-spacing: 0.3px; white-space: nowrap;
     background: rgba(255,138,90,0.85);
@@ -128,7 +122,7 @@
   #timerLabel.frozen { color: var(--cyan); }
   @keyframes barPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
   #combo {
-    position: absolute; top: calc(74px + env(safe-area-inset-top)); left: 0; right: 0;
+    position: absolute; top: calc(74px + var(--scene-safe-top, 0px)); left: 0; right: 0;
     text-align: center; color: #ffd84a; font-size: 38px; font-weight: 900;
     font-family: 'Fredoka', sans-serif; letter-spacing: 0.5px;
     text-shadow: 0 2px 0 #c47a1a, 0 4px 14px rgba(0,0,0,0.6);
@@ -183,7 +177,7 @@
   .statBox.coin .lbl { color: #8A6410; }
   .statBox .val { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 22px; color: var(--ink); }
   .ecoBar {
-    position: absolute; top: calc(14px + env(safe-area-inset-top)); left: calc(16px + env(safe-area-inset-left)); right: calc(60px + env(safe-area-inset-right)); z-index: 3;
+    position: absolute; top: calc(14px + var(--scene-safe-top, 0px)); left: calc(16px + var(--scene-safe-left, 0px)); right: calc(60px + var(--scene-safe-right, 0px)); z-index: 3;
     display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
   }
   .ecoPill {
@@ -361,7 +355,7 @@
     justify-content: flex-start; padding: 130px 0 20px;
   }
   #mapScreen h2 { margin: 0 0 10px; font-size: 20px; }
-  #shopScreen { justify-content: flex-start; padding: calc(70px + env(safe-area-inset-top)) 16px 16px; }
+  #shopScreen { justify-content: flex-start; padding: calc(70px + var(--scene-safe-top, 0px)) 16px 16px; }
   #shopScreen h2 { margin: 0 0 8px; font-size: 24px; font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--brown); }
   #shopScroll { position: relative; width: 100%; flex: 1; overflow-y: auto; scrollbar-width: thin; }
   #shopCards { display: flex; flex-direction: column; gap: 12px; padding: 4px 2px 80px; }
@@ -389,7 +383,7 @@
   }
   .shopCard .buy:active { transform: translateY(2px); }
   .shopCard .buy:disabled { opacity: 0.45; cursor: default; pointer-events: none; }
-  #settingsScreen { justify-content: flex-start; padding: calc(70px + env(safe-area-inset-top)) 16px 16px; }
+  #settingsScreen { justify-content: flex-start; padding: calc(70px + var(--scene-safe-top, 0px)) 16px 16px; }
   #settingsScreen h2 { margin: 0 0 12px; font-size: 24px; font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--brown); }
   #settingsScroll { position: relative; width: 100%; flex: 1; overflow-y: auto; scrollbar-width: thin; }
   .settingsGroupLabel { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: var(--muted-ink); margin: 14px 6px 6px; text-align: left; }
@@ -491,7 +485,7 @@
   #mapScreen .btn { margin-top: 10px; }
   #hint { display: none; }
   #muteBtn {
-    position: absolute; top: calc(14px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); z-index: 10;
+    position: absolute; top: calc(14px + var(--scene-safe-top, 0px)); right: calc(14px + var(--scene-safe-right, 0px)); z-index: 10;
     width: 38px; height: 38px; border-radius: 50%;
     background: var(--brown); border: none; box-shadow: 0 3px 0 var(--brown-sh);
     color: var(--cream); font-size: 16px; cursor: pointer;
@@ -501,7 +495,7 @@
   #powerPanel {
     /* Shared power-panel defaults; the Flavor Journey toolbar below uses
        one row with touch targets sized for the rendered mobile viewport. */
-    position: absolute; right: calc(8px + env(safe-area-inset-right)); bottom: calc(18px + var(--safe-b)); z-index: 4;
+    position: absolute; right: calc(8px + var(--scene-safe-right, 0px)); bottom: calc(18px + var(--safe-b)); z-index: 4;
     display: none; grid-template-columns: repeat(2, 1fr); gap: 6px;
     background: rgba(20,14,40,0.4); backdrop-filter: blur(6px);
     padding: 6px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.15);
@@ -576,7 +570,7 @@
   .splashTip { font-size: 14px; font-weight: 800; color: #7A5A45; margin-top: 10px; }
 
   /* -- onboarding -- */
-  #onboardingScreen { position: absolute; inset: 0; flex-direction: column; padding: calc(54px + env(safe-area-inset-top)) calc(28px + env(safe-area-inset-right)) calc(40px + var(--safe-b)) calc(28px + env(safe-area-inset-left)); z-index: 50; }
+  #onboardingScreen { position: absolute; inset: 0; flex-direction: column; padding: calc(54px + var(--scene-safe-top, 0px)) calc(28px + var(--scene-safe-right, 0px)) calc(40px + var(--safe-b)) calc(28px + var(--scene-safe-left, 0px)); z-index: 50; }
   .skipBtn { align-self: flex-end; border: none; background: rgba(59,36,24,.08); color: var(--ink); font-weight: 800; font-size: 14px; padding: 10px 16px; border-radius: 99px; cursor: pointer; }
   .onbArt { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 110px; }
   .onbDots { display: flex; gap: 8px; justify-content: center; margin-bottom: 18px; }
@@ -591,7 +585,7 @@
     background: #000; align-items: center; justify-content: center;
   }
   #introVideoScreen video { width: 100%; height: 100%; object-fit: cover; background: #000; }
-  .introVideoSkip { position: absolute; right: calc(14px + env(safe-area-inset-right)); top: calc(14px + env(safe-area-inset-top)); align-self: auto; background: rgba(255,255,255,.18); color: #fff; }
+  .introVideoSkip { position: absolute; right: calc(14px + var(--scene-safe-right, 0px)); top: calc(14px + var(--scene-safe-top, 0px)); align-self: auto; background: rgba(255,255,255,.18); color: #fff; }
 
   /* -- home logo + see intro -- */
   .homeLogo { width: 180px; max-width: 55%; height: auto; margin-top: -6px; filter: drop-shadow(0 8px 14px rgba(74,43,26,.22)); }
@@ -607,15 +601,15 @@
   }
 
   /* -- home side chips -- */
-  .homeSideCol { position: absolute; top: calc(116px + env(safe-area-inset-top)); display: flex; flex-direction: column; gap: 16px; z-index: 3; }
-  .homeSideLeft { left: calc(16px + env(safe-area-inset-left)); } .homeSideRight { right: calc(16px + env(safe-area-inset-right)); }
+  .homeSideCol { position: absolute; top: calc(116px + var(--scene-safe-top, 0px)); display: flex; flex-direction: column; gap: 16px; z-index: 3; }
+  .homeSideLeft { left: calc(16px + var(--scene-safe-left, 0px)); } .homeSideRight { right: calc(16px + var(--scene-safe-right, 0px)); }
   .roundChip { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; border: none; background: none; color: var(--ink); cursor: pointer; padding: 0; }
   .roundChip .chipIcon { width: 60px; height: 60px; flex: none; border-radius: 20px; background: var(--card); box-shadow: 0 5px 0 var(--card-sh); display: flex; align-items: center; justify-content: center; font-size: 24px; padding: 10px; box-sizing: border-box; }
   .roundChip .chipIcon img { width: 100%; height: 100%; object-fit: contain; }
   .roundChip .chipLabel { font-size: 12px; font-weight: 800; }
 
   /* -- map header -- */
-  .mapHeaderRow { position: absolute; top: calc(56px + env(safe-area-inset-top)); left: calc(14px + env(safe-area-inset-left)); right: calc(14px + env(safe-area-inset-right)); z-index: 3; display: flex; flex-direction: column; gap: 8px; }
+  .mapHeaderRow { position: absolute; top: calc(56px + var(--scene-safe-top, 0px)); left: calc(14px + var(--scene-safe-left, 0px)); right: calc(14px + var(--scene-safe-right, 0px)); z-index: 3; display: flex; flex-direction: column; gap: 8px; }
   .mapKicker { font-size: 12px; font-weight: 800; color: var(--muted-ink); letter-spacing: 1px; }
   #mapScreen h2 { margin: 0; font-size: 21px; color: var(--brown); }
 
@@ -626,7 +620,7 @@
   /* -- bottom nav -- */
   #bottomNav {
     position: absolute; left: 0; right: 0; bottom: 0; height: calc(64px + var(--safe-b)); z-index: 8;
-    padding: 0 calc(26px + env(safe-area-inset-right)) calc(10px + var(--safe-b)) calc(26px + env(safe-area-inset-left)); border-radius: 24px 24px 0 0;
+    padding: 0 calc(26px + var(--scene-safe-right, 0px)) calc(10px + var(--safe-b)) calc(26px + var(--scene-safe-left, 0px)); border-radius: 24px 24px 0 0;
     background: var(--card); box-shadow: 0 -4px 20px rgba(122,74,46,.15);
     align-items: center; justify-content: space-between;
   }
@@ -646,7 +640,7 @@
   #pauseBtn {
     /* left matches #hud's own left padding exactly, so this lines up with the level pill
        directly above it instead of sitting a few px further out. */
-    position: absolute; left: calc(16px + env(safe-area-inset-left)); top: calc(54px + env(safe-area-inset-top)); z-index: 6;
+    position: absolute; left: calc(16px + var(--scene-safe-left, 0px)); top: calc(54px + var(--scene-safe-top, 0px)); z-index: 6;
     width: 44px; height: 44px; border: 1px solid rgba(255,255,255,0.15); border-radius: 16px;
     background: rgba(59,36,24,0.55); backdrop-filter: blur(4px);
     box-shadow: 0 3px 8px rgba(0,0,0,0.22);
@@ -669,7 +663,7 @@
   }
 
   /* -- bottom sheet overlays (pause / toppings / daily) -- */
-  .sheetOverlay { position: absolute; inset: 0; z-index: 30; background: rgba(59,36,24,.55); align-items: flex-end; justify-content: center; padding: calc(16px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(24px + var(--safe-b)) calc(12px + env(safe-area-inset-left)); }
+  .sheetOverlay { position: absolute; inset: 0; z-index: 30; background: rgba(59,36,24,.55); align-items: flex-end; justify-content: center; padding: calc(16px + var(--scene-safe-top, 0px)) calc(12px + var(--scene-safe-right, 0px)) calc(24px + var(--safe-b)) calc(12px + var(--scene-safe-left, 0px)); }
   .sheetOverlay.center { align-items: center; }
   .sheetCard { position: relative; width: 100%; border-radius: 30px; background: var(--card); color: var(--ink); padding: 22px 20px; box-shadow: 0 10px 0 rgba(59,36,24,.3); display: flex; flex-direction: column; gap: 12px; }
   .sheetTitle { text-align: center; font-size: 36px; color: var(--brown); }
@@ -755,7 +749,7 @@
   .dailyCheck { position: absolute; inset: 0; border-radius: 15px; background: rgba(143,203,107,.9); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; color: var(--matcha-ink); }
 
   /* Flavor Journey chrome keeps the existing branded sky and character artwork. */
-  #hud { top: calc(10px + env(safe-area-inset-top)); left: 12px; right: 12px; padding: 8px 10px; grid-template-columns: minmax(0,1fr) minmax(80px,auto) var(--touch-size,44px); gap: 6px 10px; border-radius: 20px; background: #fff7ef; box-shadow: 0 4px 14px rgba(74,43,26,.12); z-index: 2; }
+  #hud { top: calc(10px + var(--scene-safe-top, 0px)); left: calc(12px + var(--scene-safe-left, 0px)); right: calc(12px + var(--scene-safe-right, 0px)); padding: 8px 10px; grid-template-columns: minmax(0,1fr) minmax(80px,auto) var(--touch-size,44px); gap: 6px 10px; border-radius: 20px; background: #fff7ef; box-shadow: 0 4px 14px rgba(74,43,26,.12); z-index: 2; }
   .hudLevel,.hudScore { min-width: 0; display: flex; flex-direction: column; gap: 2px; height: var(--touch-size,44px); justify-content: center; }
   .hudLevel { grid-column: 1; grid-row: 1; }
   .hudScore { grid-column: 2; grid-row: 1; text-align: right; }
@@ -770,13 +764,13 @@
   #hud #timerLabel { flex: 0 0 44px; font-size: 15px; text-align: right; color: #50321f; text-shadow: none; font-variant-numeric: tabular-nums; }
   #hud #timerLabel.urgent { color: #b6273b; }
   #hud #timerLabel.frozen { color: #276b78; }
-  #pauseBtn { top: calc(18px + env(safe-area-inset-top)); left: auto; right: 22px; width: var(--touch-size,44px); height: var(--touch-size,44px); background: #f0e4d5; border: 0; box-shadow: none; border-radius: 15px; }
+  #pauseBtn { top: calc(18px + var(--scene-safe-top, 0px)); left: auto; right: calc(22px + var(--scene-safe-right, 0px)); width: var(--touch-size,44px); height: var(--touch-size,44px); background: #f0e4d5; border: 0; box-shadow: none; border-radius: 15px; }
   #pauseBtn span { background: #50321f; }
-  #streakLabel { top: calc(79px + var(--touch-size,44px) + env(safe-area-inset-top)); padding: 4px 12px; font-size: 11px; line-height: 16px; background: #fff7ef; color: #a65339; box-shadow: 0 2px 6px rgba(74,43,26,.14); }
-  #combo { top: calc(170px + env(safe-area-inset-top)); z-index: 3; }
-  #mapScreen { padding: calc(168px + env(safe-area-inset-top)) 0 calc(80px + var(--nav-height,64px) + var(--safe-b)); }
+  #streakLabel { top: calc(79px + var(--touch-size,44px) + var(--scene-safe-top, 0px)); padding: 4px 12px; font-size: 11px; line-height: 16px; background: #fff7ef; color: #a65339; box-shadow: 0 2px 6px rgba(74,43,26,.14); }
+  #combo { top: calc(170px + var(--scene-safe-top, 0px)); z-index: 3; }
+  #mapScreen { padding: calc(168px + var(--scene-safe-top, 0px)) 0 calc(80px + var(--nav-height,64px) + var(--safe-b)); }
   #mapScreen .ecoBar { right: 16px; }
-  .mapHeaderRow { top: calc(62px + env(safe-area-inset-top)); padding: 10px 14px; border-radius: 20px; background: #fff7ef; text-align: left; box-shadow: 0 4px 14px rgba(74,43,26,.1); }
+  .mapHeaderRow { top: calc(62px + var(--scene-safe-top, 0px)); padding: 10px 14px; border-radius: 20px; background: #fff7ef; text-align: left; box-shadow: 0 4px 14px rgba(74,43,26,.1); }
   .mapKicker { font-size: 9px; letter-spacing: 1.5px; color: #a65339; }
   #mapScreen h2 { font: 700 22px 'Fredoka',sans-serif; margin: 2px 0 6px; color: #50321f; }
   .journeyProgress { height: 5px; border-radius: 10px; background: #eadbca; overflow: hidden; }
@@ -802,13 +796,13 @@
   #playBtn { min-height: var(--touch-size,44px); justify-content: center; }
   @media(prefers-reduced-motion:reduce) { .menuFloaters img,.levelNodeInner,.levelMascotMarker { animation: none !important; } }
 
-  #powerPanel { left: 8px; right: 8px; bottom: var(--safe-b); grid-template-columns: repeat(5,var(--touch-size,44px)); justify-content: center; gap: 3px; padding: 2px; background: #fff7ef; border: 0; border-radius: 14px; box-shadow: 0 -2px 10px rgba(74,43,26,.12); }
+  #powerPanel { left: calc(8px + var(--scene-safe-left, 0px)); right: calc(8px + var(--scene-safe-right, 0px)); bottom: var(--safe-b); grid-template-columns: repeat(5,var(--touch-size,44px)); justify-content: center; gap: 3px; padding: 2px; background: #fff7ef; border: 0; border-radius: 14px; box-shadow: 0 -2px 10px rgba(74,43,26,.12); }
   .powerBtn { width: var(--touch-size,44px); height: var(--touch-size,44px); border: 1px solid #ddc7b2; background: #f0e4d5; padding: 9px; }
   .powerBtn img { max-width: 38px; max-height: 38px; }
   .powerBtn small { bottom: 2px; right: 2px; color: #50321f; background: #fff7ef; border: 0; padding: 1px 4px; }
   .powerBtn.armed { background: #ffe1b0; border-color: #b75b42; box-shadow: inset 0 0 0 2px #b75b42; }
   #bobaMascot { top: 707px; bottom: auto; }
-  #portraitPrompt { position: fixed; inset: 0; z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: max(20px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left)); background: #fff7ef; color: #50321f; text-align: center; }
+  #portraitPrompt { position: fixed; inset: 0; z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: max(20px,var(--safe-area-inset-top,env(safe-area-inset-top))) max(20px,var(--safe-area-inset-right,env(safe-area-inset-right))) max(20px,var(--safe-area-inset-bottom,env(safe-area-inset-bottom))) max(20px,var(--safe-area-inset-left,env(safe-area-inset-left))); background: #fff7ef; color: #50321f; text-align: center; }
   #portraitPrompt img { width: 66px; height: 66px; object-fit: contain; }
   #portraitPrompt h2 { font: 700 26px 'Fredoka',sans-serif; margin: 0; }
   #portraitPrompt p { font-size: 17px; line-height: 1.5; margin: 0; }
@@ -816,6 +810,7 @@
 </style>
 </head>
 <body>
+<div id="safeAreaProbe" aria-hidden="true" style="position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)"></div>
 <div id="wrap">
   <button id="muteBtn" title="Mute music">🔊</button>
   <audio id="bgmAudio" src="bgm-track1.mp3" preload="auto"></audio>
@@ -1062,7 +1057,8 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const gameContext = ctx;
-const W = 390, H = 928, PLAYFIELD_H = 844;
+const BASE_W = 390, BASE_H = 928, PLAYFIELD_H = 844;
+let W = BASE_W, H = BASE_H;
 // render at the device's real pixel density (capped - no point buffering past ~2.5x, and it
 // costs fill-rate on cheaper phones) instead of a flat scene backing buffer stretched up by
 // the #wrap scale transform, which is what made every sprite/bubble look soft on hi-res phones.
@@ -1299,7 +1295,7 @@ let pausedFromState = 'playing';
 
 let shooterX = W / 2;
 let shooterY = PLAYFIELD_H - 90; // Keep the original playfield independently of bottom chrome.
-const KILL_LINE_Y = shooterY - RADIUS * 3.6;
+let KILL_LINE_Y = shooterY - RADIUS * 3.6;
 
 function rowOffset(r) { return (r % 2 === 1) ? RADIUS : 0; }
 function colsInRow(r) { return (r % 2 === 1) ? COLS - 1 : COLS; }
@@ -4525,9 +4521,10 @@ document.getElementById('onbSkipBtn').addEventListener('click', finishOnboarding
 document.getElementById('onbNextBtn').addEventListener('click', advanceOnboarding);
 document.getElementById('seeIntroBtn').addEventListener('click', () => showIntroVideo(() => {}));
 
-// --- Responsive scene scaling; the original playfield remains 390×844. ---
+// --- Uniform sprite scaling with viewport-sized scene extents and native-safe chrome. ---
 const wrapEl = document.getElementById('wrap');
 let lastFitScale = 0;
+let lastFitSignature = "";
 let orientationAutoPaused = false;
 function fitToViewport() {
   const vw = window.innerWidth, vh = window.innerHeight;
@@ -4541,14 +4538,31 @@ function fitToViewport() {
     orientationAutoPaused = false;
     closePause();
   }
-  const scale = Math.min(vw / W, vh / H, 1.4);
+  const scale = Math.min(vw / BASE_W, vh / BASE_H, 1.4);
+  const rootStyle = getComputedStyle(document.documentElement);
+  const insets = {};
+  for (const edge of ['top','right','bottom','left']) {
+    const nativeInset = rootStyle.getPropertyValue('--safe-area-inset-' + edge).trim();
+    const probe = document.getElementById('safeAreaProbe');
+    insets[edge] = nativeInset ? parseFloat(nativeInset) || 0 : parseFloat(getComputedStyle(probe)['padding' + edge[0].toUpperCase() + edge.slice(1)]) || 0;
+  }
+  const signature = [vw,vh,...Object.values(insets)].join(':');
   // some Android WebViews (seen on certain Huawei/Honor builds) report a stale innerWidth/
   // innerHeight right after the activity is forced into portrait on launch, and never fire a
   // real 'resize'/visualViewport 'resize' afterward once it settles - so on top of the normal
   // listeners below, this also gets re-checked every frame from loop() as a cheap safety net
   // (skip the DOM write entirely when nothing changed, so idle frames don't thrash layout).
-  if (Math.abs(scale - lastFitScale) < 0.001) return;
+  if (lastFitScale && signature === lastFitSignature) return;
+  lastFitSignature = signature;
   lastFitScale = scale;
+  const oldW = W, oldTop = TOP_MARGIN, oldRadius = RADIUS;
+  W = vw / scale; H = vh / scale;
+  wrapEl.style.width = W + 'px'; wrapEl.style.height = H + 'px';
+  for (const edge of ['top','right','bottom','left']) wrapEl.style.setProperty('--scene-safe-' + edge, insets[edge] / scale + 'px');
+  wrapEl.style.setProperty('--safe-b', insets.bottom / scale + 'px');
+  canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   wrapEl.style.setProperty('--touch-size', Math.max(44, 44 / scale) + 'px');
   wrapEl.style.setProperty('--nav-height', Math.max(64, 44 / scale + 12) + 'px');
   // Reserve the actual chrome height, including reported safe areas and small-screen
@@ -4564,26 +4578,43 @@ function fitToViewport() {
     const streakBottom = parseFloat(streakStyle.top) + streakHeight;
     TOP_MARGIN = Math.max(170, hudEl.offsetTop + hudEl.offsetHeight + 36, streakBottom + 8);
   }
-  // Keep the cup beneath the original danger line; fit its body above safe toolbar space.
-  const toolbarInset = parseFloat(getComputedStyle(document.getElementById('powerPanel')).bottom) || 0;
+  // Bottom chrome is anchored above the native navigation inset. The launcher and
+  // cup move together, keeping their artwork entirely below the loss boundary.
+  const toolbar = document.getElementById('powerPanel');
+  const toolbarInset = insets.bottom / scale;
+  const toolbarHeight = Math.max(toolbar.offsetHeight, 44 / scale + 4);
   const mascot = document.getElementById('bobaMascot');
-  const mascotHeight = 137 - toolbarInset;
+  const mascotHeight = 137;
+  const mascotTop = Math.min(707 + H - BASE_H, H - toolbarInset - toolbarHeight - mascotHeight - 12);
+  mascot.style.top = mascotTop + 'px';
   mascot.style.height = mascotHeight + 'px';
-  mascot.style.width = (220 * mascotHeight / 137) + 'px';
+  mascot.style.width = '220px';
   if (mascot.offsetWidth && bobaMood) renderMoodInto(mascot, bobaMood);
-  // The scene adds bottom chrome space while preserving original shooter/loss geometry.
-  shooterY = PLAYFIELD_H - 90;
+  shooterX = W / 2;
+  shooterY = mascotTop + 47;
+  KILL_LINE_Y = mascotTop - 25;
   // Notched screens can consume both ends of the scene. Keep all twelve rows
   // and the same loss boundary, fitting pearl geometry into the remaining space.
   // A twelve-row board ends at TOP_MARGIN + (11 * 1.75 + 2) * radius;
   // the straw starts at shooterY - LAUNCHER_TUBE_UNITS * LAUNCHER_SCALE * radius.
   const boardAndStrawUnits = 11 * 1.75 + 2 + LAUNCHER_TUBE_UNITS * LAUNCHER_SCALE;
-  RADIUS = Math.max(8, Math.min(20, (shooterY - TOP_MARGIN - 10) / boardAndStrawUnits));
+  RADIUS = Math.max(8, Math.min(20, (shooterY - TOP_MARGIN - 10) / boardAndStrawUnits, (KILL_LINE_Y - TOP_MARGIN - 24) / (11 * 1.75 + 2)));
   DIAM = RADIUS * 2;
   ROW_H = RADIUS * 1.75;
   LEFT_MARGIN = (W - COLS * DIAM) / 2;
+  // Existing board cells remain centered when the viewport expands horizontally.
+  // Projectiles retain their location relative to the launcher during resize.
+  if (flying) {
+    flying.x = W / 2 + (flying.x - oldW / 2) * RADIUS / oldRadius;
+    flying.y = TOP_MARGIN + (flying.y - oldTop) * RADIUS / oldRadius;
+  }
+  for (const effect of [...particles, ...fallingBubbles, ...texts, ...rings]) {
+    if (typeof effect.x === 'number') effect.x += (W - oldW) / 2;
+  }
   wrapEl.style.transform = `scale(${scale})`;
+  if (appState === 'map') buildGalaxyMap();
 }
+new MutationObserver(fitToViewport).observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'class'] });
 window.addEventListener('resize', fitToViewport);
 window.addEventListener('orientationchange', fitToViewport);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', fitToViewport);

@@ -14,17 +14,20 @@ of `index.html` (this directory) for what each function does and why it exists.
    project, or edit `.firebaserc` directly and replace `REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID`.
 4. **Enable Firestore**: Firebase Console → Build → Firestore Database → Create database
    (production mode, any region - it only ever stores purchase-token records).
-5. **Link Play Console to this Firebase project's service account** (this is what lets the
-   function ask Google "is this purchase real?"):
-   - Play Console → Setup → API access → "Link" a Google Cloud project if not already linked
-     (pick the SAME project as this Firebase project - they can be the same project).
-   - Still on that page, under "Service accounts", find the one named like
-     `firebase-adminsdk-xxxxx@<project-id>.iam.gserviceaccount.com` (Firebase creates this
-     automatically) - if it's not listed yet, click "Create new service account" and follow the
-     Google Cloud Console link, then come back and refresh.
-   - Click "Grant access" next to it. Give it these permissions: **Financial data → View
-     financial data, orders, and cancellation survey responses**, and **Orders → Manage orders**
-     (needed to acknowledge/consume/refund-check purchases). Nothing else is needed.
+5. **Grant a service account access to the Play Developer API** (this is what lets the function
+   ask Google "is this purchase real?"). Play Console dropped the standalone "API access" page at
+   some point - the current flow goes through Google Cloud Console + Users and permissions:
+   - Google Cloud Console (console.cloud.google.com), same project as this Firebase project →
+     IAM & Admin → Service Accounts. Reuse the one Firebase already created
+     (`firebase-adminsdk-xxxxx@<project-id>.iam.gserviceaccount.com`) rather than making a new
+     one, unless you have a reason to separate them.
+   - Copy that service account's email address.
+   - Play Console → **Users and permissions** → **Invite new users** → paste the service
+     account's email exactly like inviting a person.
+   - Grant it: **Financial data → View financial data, orders, and cancellation survey
+     responses**, and **Orders → Manage orders** (needed to acknowledge/consume/refund-check
+     purchases). Nothing else is needed. Send the invite - a service account has no inbox to
+     confirm from, so Play Console accepts it immediately.
    - This means the function's OWN identity can authenticate to the Play Developer API with no
      separate key file to manage - but it only works when deployed (Application Default
      Credentials), so for local testing you'd still need a downloaded key. For now, deploy and
@@ -49,7 +52,7 @@ of `index.html` (this directory) for what each function does and why it exists.
 
 ## What's NOT handled by this backend (scope - see it as a solid baseline, not a finished system)
 
-- Subscriptions (this app only sells one-time products today - `remove_ads`, `coins_250`).
+- Subscriptions (this app only sells one-time products today - `remove_ads`, `coins_100`, `coins_250`).
 - A full client-side entitlement poll loop - `checkEntitlement` exists and the client calls it
   opportunistically (see `checkRemoveAdsEntitlement()` in `www/index.html`), but there's no
   push-to-device mechanism, so a refund takes effect next time the app checks, not instantly.

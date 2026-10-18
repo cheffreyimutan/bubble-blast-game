@@ -31,8 +31,10 @@ const db = admin.firestore();
 // are rejected outright, so this endpoint can't be pointed at a different app's purchases.
 const PACKAGE_NAME = 'com.cheffrey.popabobba';
 const REMOVE_ADS_PRODUCT_ID = 'remove_ads';
-const COIN_TOPUP_PRODUCT_ID = 'coins_250';
-const KNOWN_PRODUCT_IDS = new Set([REMOVE_ADS_PRODUCT_ID, COIN_TOPUP_PRODUCT_ID]);
+// All consumable coin-pack product IDs - keep in sync with COIN_PACKS in www/index.html whenever
+// a new denomination is added there.
+const COIN_PACK_PRODUCT_IDS = new Set(['coins_100', 'coins_250']);
+const KNOWN_PRODUCT_IDS = new Set([REMOVE_ADS_PRODUCT_ID, ...COIN_PACK_PRODUCT_IDS]);
 
 // The downloaded Play Console service-account JSON key, stored as a Firebase secret so it never
 // touches source control or chat: `firebase functions:secrets:set PLAY_SERVICE_ACCOUNT_KEY` and
@@ -96,7 +98,7 @@ exports.verifyAndGrantPurchase = onRequest(
         return;
       }
 
-      const isConsumable = productId === COIN_TOPUP_PRODUCT_ID;
+      const isConsumable = COIN_PACK_PRODUCT_IDS.has(productId);
       // consumptionState: 0 = yet to be consumed, 1 = consumed.
       if (isConsumable) {
         if (purchase.consumptionState !== 1) {

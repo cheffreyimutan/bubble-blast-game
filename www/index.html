@@ -3056,8 +3056,14 @@ const REMOVE_ADS_PRODUCT_ID = 'remove_ads'; // one-time/non-consumable Managed P
 // created with this exact ID in Play Console > Monetize > Products > In-app products before
 // shipping; purchases against it fail ("item not found") until it exists there. No real product
 // needs to exist in Play Console for this story's acceptance criteria.
-const COIN_TOPUP_PRODUCT_ID = 'coins_250'; // consumable Managed Product (grants +250 coins each
-// time it's bought *and* consumed) - also must be created in Play Console first, marked consumable.
+// Consumable Managed Products (each grants its listed coin amount *and* is consumed - see
+// buyCoinPack below) - must be created in Play Console with these exact IDs first. fallbackPrice
+// is only shown before updateShopBillingPrices() gets a real localized price from Google (or on
+// a dev/browser build where that never happens at all).
+const COIN_PACKS = [
+  { productId: 'coins_100', coins: 100, fallbackPrice: '$0.99' },
+  { productId: 'coins_250', coins: 250, fallbackPrice: '$1.99' },
+];
 // Fill these in once functions/ is deployed (see functions/README.md) - empty strings mean "no
 // backend yet", in which case every purchase falls back to the client-only ack/consume below
 // rather than failing outright. A deployed backend verifies each purchase against Google directly
@@ -3161,17 +3167,21 @@ async function buyRemoveAds() {
   }
   showOverlay('Remove Ads', 'Ads removed - thanks for your support!', 'Nice', showShop);
 }
-async function buyCoinsTopUp() {
+// Generic over COIN_PACKS (coins_100, coins_250, ...) - identical flow to the original
+// coins_250-only buyCoinsTopUp(), just parameterized on which pack was tapped, so adding another
+// denomination later never means copy-pasting this whole function again.
+async function buyCoinPack(pack) {
+  const label = `${pack.coins} Coins`;
   if (!billingAvailable()) {
     showOverlay('Purchases unavailable', 'Google Play Billing isn\'t available here - this only works on the installed Android app.', 'OK', showShop);
     return;
   }
-  showOverlay('250 Coins', 'Talking to Google Play…', 'Please wait', () => {}, null, null, { primaryDisabled: true });
+  showOverlay(label, 'Talking to Google Play…', 'Please wait', () => {}, null, null, { primaryDisabled: true });
   const Billing = window.Capacitor.Plugins.NativePurchases;
   let transaction;
   try {
     transaction = await Billing.purchaseProduct({
-      productIdentifier: COIN_TOPUP_PRODUCT_ID,
+      productIdentifier: pack.productId,
       productType: 'inapp',
       isConsumable: true,
       autoAcknowledgePurchases: false
@@ -3179,20 +3189,20 @@ async function buyCoinsTopUp() {
     if (!transaction || !transaction.purchaseToken) throw new Error('Purchase did not return a purchase token');
   } catch (e) {
     const cancelled = /cancel/i.test((e && e.message) || '');
-    showOverlay(cancelled ? '250 Coins' : 'Purchase failed', cancelled ? 'Purchase cancelled.' : 'Something went wrong completing that purchase. Please try again.', 'OK', showShop);
+    showOverlay(cancelled ? label : 'Purchase failed', cancelled ? 'Purchase cancelled.' : 'Something went wrong completing that purchase. Please try again.', 'OK', showShop);
     return;
   }
   // See the matching check in buyRemoveAds() - purchaseState "0" means real money hasn't
   // definitely moved yet, so no coins are granted until it resolves (onBillingTransactionUpdated
   // picks it back up then).
   if (transaction.purchaseState === '0') {
-    showOverlay('250 Coins', "Your payment is still processing - we'll add your coins automatically as soon as Google Play confirms it, no need to buy again.", 'OK', showShop);
+    showOverlay(label, "Your payment is still processing - we'll add your coins automatically as soon as Google Play confirms it, no need to buy again.", 'OK', showShop);
     return;
   }
   // Purchase itself succeeded - grant the coins now, independent of whether consume below succeeds.
-  addCoins(250);
+  addCoins(pack.coins);
   renderEcoPills();
-  const serverResult = await verifyPurchaseServerSide(COIN_TOPUP_PRODUCT_ID, transaction.purchaseToken);
+  const serverResult = await verifyPurchaseServerSide(pack.productId, transaction.purchaseToken);
   // Same reasoning as buyRemoveAds(): a deployed backend already consumed this server-side, so
   // only fall back to consuming it here ourselves when there's no backend to trust yet.
   if (!serverResult) {
@@ -3201,11 +3211,11 @@ async function buyCoinsTopUp() {
     // consumes since that would let a one-time purchase be rebought.
     const consumed = await consumeWithRetries(Billing, transaction.purchaseToken);
     if (!consumed) {
-      showOverlay('250 Coins', "Your 250 coins were added! We're still confirming with Google Play in the background - no need to buy again; if Top Up Coins looks unavailable for a bit, that's expected and will clear up shortly.", 'OK', showShop);
+      showOverlay(label, `Your ${pack.coins} coins were added! We're still confirming with Google Play in the background - no need to buy again; if ${label} looks unavailable for a bit, that's expected and will clear up shortly.`, 'OK', showShop);
       return;
     }
   }
-  showOverlay('250 Coins', '+250 coins added to your wallet!', 'Nice', showShop);
+  showOverlay(label, `+${pack.coins} coins added to your wallet!`, 'Nice', showShop);
 }
 // Re-derives removeAdsPurchased from Google Play directly, rather than trusting only the local
 // flag - covers reinstalls, cleared app data, and a second device signed into the same account.
@@ -3235,23 +3245,23 @@ async function restorePurchasesFlow() {
 function updateShopBillingPrices() {
   if (!billingAvailable()) return;
   window.Capacitor.Plugins.NativePurchases.getProducts({
-    productIdentifiers: [REMOVE_ADS_PRODUCT_ID, COIN_TOPUP_PRODUCT_ID],
+    productIdentifiers: [REMOVE_ADS_PRODUCT_ID, ...COIN_PACKS.map(p => p.productId)],
     productType: 'inapp'
   }).then(({ products }) => {
     if (!Array.isArray(products)) return;
     const removeAdsProduct = products.find(p => p.identifier === REMOVE_ADS_PRODUCT_ID);
-    const coinsProduct = products.find(p => p.identifier === COIN_TOPUP_PRODUCT_ID);
     const noAdsBtn = document.getElementById('buyNoAdsBtn');
     if (noAdsBtn && !removeAdsPurchased && removeAdsProduct && removeAdsProduct.priceString) {
       noAdsBtn.textContent = removeAdsProduct.priceString;
     }
-    const coinsBtn = document.getElementById('buyCoinsBtn');
-    if (coinsBtn && coinsProduct && coinsProduct.priceString) {
-      coinsBtn.textContent = coinsProduct.priceString;
+    for (const pack of COIN_PACKS) {
+      const product = products.find(p => p.identifier === pack.productId);
+      const btn = document.getElementById(`buyCoinsBtn-${pack.productId}`);
+      if (btn && product && product.priceString) btn.textContent = product.priceString;
     }
   }).catch(() => {});
 }
-// Finishes a transaction that was PENDING at purchase time (buyRemoveAds/buyCoinsTopUp return
+// Finishes a transaction that was PENDING at purchase time (buyRemoveAds/buyCoinPack return
 // early without granting anything in that case) and has now resolved - fired by the plugin's own
 // transactionUpdated event, which covers both the app being open when it resolves and Play
 // delivering the update the next time the app launches. Ignores anything already final
@@ -3259,17 +3269,18 @@ function updateShopBillingPrices() {
 async function onBillingTransactionUpdated(transaction) {
   if (!transaction || transaction.purchaseState !== '1' || !transaction.purchaseToken) return;
   const Billing = window.Capacitor.Plugins.NativePurchases;
+  const pack = COIN_PACKS.find(p => p.productId === transaction.productIdentifier);
   if (transaction.productIdentifier === REMOVE_ADS_PRODUCT_ID) {
     if (removeAdsPurchased) return;
     finishRemoveAdsPurchase(transaction.purchaseToken);
     buildShopCards();
     const serverResult = await verifyPurchaseServerSide(REMOVE_ADS_PRODUCT_ID, transaction.purchaseToken);
     if (!serverResult) await acknowledgeWithRetries(Billing, transaction.purchaseToken);
-  } else if (transaction.productIdentifier === COIN_TOPUP_PRODUCT_ID) {
+  } else if (pack) {
     if (transaction.isAcknowledged) return; // already consumed by an earlier event/session
-    addCoins(250);
+    addCoins(pack.coins);
     renderEcoPills();
-    const serverResult = await verifyPurchaseServerSide(COIN_TOPUP_PRODUCT_ID, transaction.purchaseToken);
+    const serverResult = await verifyPurchaseServerSide(pack.productId, transaction.purchaseToken);
     if (!serverResult) await consumeWithRetries(Billing, transaction.purchaseToken);
   }
 }
@@ -3386,11 +3397,12 @@ function buildShopCards() {
     </div>`).join('')}
 
     <div class="shopSectionLabel">Coins Top Up</div>
+    ${COIN_PACKS.map(pack => `
     <div class="shopCard">
       <div class="icon"><img src="icons/icon-coinstack.png" alt=""></div>
-      <div class="info"><div class="title">250 Coins</div><div class="sub">The premium currency</div></div>
-      <button class="buy" style="background:var(--mint);color:var(--mint-ink);box-shadow:0 4px 0 var(--mint-sh);" id="buyCoinsBtn">$1.99</button>
-    </div>
+      <div class="info"><div class="title">${pack.coins} Coins</div><div class="sub">The premium currency</div></div>
+      <button class="buy buyCoinPack" style="background:var(--mint);color:var(--mint-ink);box-shadow:0 4px 0 var(--mint-sh);" id="buyCoinsBtn-${pack.productId}" data-product="${pack.productId}">${pack.fallbackPrice}</button>
+    </div>`).join('')}
 
     <div class="shopSectionLabel">Pearl Exchange</div>
     <div class="shopCard">
@@ -3408,11 +3420,13 @@ function buildShopCards() {
   document.getElementById('buyHeartBtn').onclick = buyHeart;
   document.getElementById('watchAdHeartBtn').onclick = watchAdForHeart;
   document.getElementById('buyBundleBtn').onclick = buyBoosterBundle;
-  document.getElementById('buyCoinsBtn').onclick = buyCoinsTopUp;
   document.getElementById('buyExchangeBtn').onclick = buyPearlExchange;
   document.getElementById('buyNoAdsBtn').onclick = buyRemoveAds;
   document.getElementById('buyStarterBtn').onclick = buyStarterPack;
   document.getElementById('buyDoubleBtn').onclick = buyDoubleLoadout;
+  el.querySelectorAll('.buyCoinPack').forEach(btn => {
+    btn.addEventListener('click', () => buyCoinPack(COIN_PACKS.find(p => p.productId === btn.dataset.product)));
+  });
   el.querySelectorAll('.buySingle').forEach(btn => {
     btn.addEventListener('click', () => buySinglePower(btn.dataset.key));
   });

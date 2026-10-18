@@ -1444,10 +1444,19 @@ function openDailyGift() {
 }
 // Google's official public TEST ad unit IDs - these only ever serve Google's own test
 // creatives (clearly labeled "Test Ad"), so they're safe to ship as a placeholder with no
-// AdMob account of our own. Swap for real ad unit IDs from an AdMob console before this needs
-// to earn real revenue - shipping these to production just means the "ad" never monetizes.
+// AdMob account of our own.
 const ADMOB_REWARDED_TEST_ID = 'ca-app-pub-3940256099942544/5224354917';
 const ADMOB_INTERSTITIAL_TEST_ID = 'ca-app-pub-3940256099942544/1033173712';
+// Fill in once a real AdMob app/ad units exist (admob.google.com) - leave ADMOB_USE_PRODUCTION
+// false until then, since these placeholders are invalid IDs that would make every real ad
+// request fail. This one flag is the single switch between test and production ad config - flip
+// it only right before a release build, never for a debug/dev build, so test and production never
+// mix in the same running app.
+const ADMOB_REWARDED_PROD_ID = 'ca-app-pub-4968181628056526/7532819665';
+const ADMOB_INTERSTITIAL_PROD_ID = 'ca-app-pub-4968181628056526/4849236993';
+const ADMOB_USE_PRODUCTION = false;
+const ADMOB_REWARDED_ID = ADMOB_USE_PRODUCTION ? ADMOB_REWARDED_PROD_ID : ADMOB_REWARDED_TEST_ID;
+const ADMOB_INTERSTITIAL_ID = ADMOB_USE_PRODUCTION ? ADMOB_INTERSTITIAL_PROD_ID : ADMOB_INTERSTITIAL_TEST_ID;
 function admobAvailable() {
   try { return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob); }
   catch (e) { return false; }
@@ -1519,7 +1528,7 @@ async function showInterstitialAfterGame() {
     await listen('interstitialAdDismissed', () => { if (showing) finish(); });
     await listen('interstitialAdFailedToShow', () => { if (showing && !presented) finish(); });
     await listen('interstitialAdShowed', () => { if (showing) presented = true; });
-    await bounded(Promise.resolve(plugin.prepareInterstitial({ adId: ADMOB_INTERSTITIAL_TEST_ID, isTesting: true })));
+    await bounded(Promise.resolve(plugin.prepareInterstitial({ adId: ADMOB_INTERSTITIAL_ID, isTesting: !ADMOB_USE_PRODUCTION })));
     if (cancelled || removeAdsPurchased) return;
     showing = true;
     // Once native show is invoked, only dismissal/failure can release the lock.
@@ -1602,7 +1611,7 @@ async function nativeRewardedOutcome(plugin) {
     await listen('onRewardedVideoAdDismissed', () => { if (showing) finish(false); });
     await listen('onRewardedVideoAdFailedToShow', () => { if (showing && !presented) finish(true); });
     await listen('onRewardedVideoAdShowed', () => { if (showing) presented = true; });
-    await bounded(Promise.resolve(plugin.prepareRewardVideoAd({ adId: ADMOB_REWARDED_TEST_ID, isTesting: true })));
+    await bounded(Promise.resolve(plugin.prepareRewardVideoAd({ adId: ADMOB_REWARDED_ID, isTesting: !ADMOB_USE_PRODUCTION })));
     showing = true;
     // The Android show promise reports reward-earned, not dismissal. Only the
     // terminal native callback can safely unlock the result screen/gameplay.
@@ -3049,13 +3058,36 @@ const REMOVE_ADS_PRODUCT_ID = 'remove_ads'; // one-time/non-consumable Managed P
 // needs to exist in Play Console for this story's acceptance criteria.
 const COIN_TOPUP_PRODUCT_ID = 'coins_250'; // consumable Managed Product (grants +250 coins each
 // time it's bought *and* consumed) - also must be created in Play Console first, marked consumable.
+// Fill these in once functions/ is deployed (see functions/README.md) - empty strings mean "no
+// backend yet", in which case every purchase falls back to the client-only ack/consume below
+// rather than failing outright. A deployed backend verifies each purchase against Google directly
+// and does the acknowledge/consume server-side, which a modified APK can't fake or skip.
+const PURCHASE_VERIFY_ENDPOINT = '';
+const PURCHASE_ENTITLEMENT_CHECK_ENDPOINT = '';
+async function verifyPurchaseServerSide(productId, purchaseToken) {
+  if (!PURCHASE_VERIFY_ENDPOINT) return null; // no backend configured yet - caller falls back
+  try {
+    const res = await fetch(PURCHASE_VERIFY_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ packageName: 'com.cheffrey.popabobba', productId, purchaseToken }),
+    });
+    if (!res.ok) return null; // treat a server error as "couldn't verify", not "verification failed"
+    return await res.json(); // { verified: true/false, reason?, alreadyProcessed? }
+  } catch (e) { return null; } // offline/unreachable - fall back to client-only finishing below
+}
 function billingAvailable() {
   try { return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.NativePurchases); }
   catch (e) { return false; }
 }
-function finishRemoveAdsPurchase() {
+function finishRemoveAdsPurchase(purchaseToken) {
   removeAdsPurchased = true;
-  try { localStorage.setItem('bubbleBlastRemoveAds', '1'); } catch (e) {}
+  try {
+    localStorage.setItem('bubbleBlastRemoveAds', '1');
+    // kept so checkRemoveAdsEntitlement() can later ask the backend "is this specific purchase
+    // still valid" - without it a refund could never be detected client-side at all.
+    if (purchaseToken) localStorage.setItem('bubbleBlastRemoveAdsToken', purchaseToken);
+  } catch (e) {}
 }
 // WHY: purchaseProduct() resolving means Google Play already charged the user and recorded the
 // purchase - acknowledgePurchase()/consumePurchase() afterward are just finishing steps. If one of
@@ -3104,16 +3136,27 @@ async function buyRemoveAds() {
     showOverlay(cancelled ? 'Remove Ads' : 'Purchase failed', cancelled ? 'Purchase cancelled.' : 'Something went wrong completing that purchase. Please try again.', 'OK', showShop);
     return;
   }
+  // purchaseState "0" is Play Billing's PENDING state (e.g. cash/carrier billing awaiting
+  // completion) - real money hasn't definitely moved yet, so don't grant or finish anything here.
+  // onBillingTransactionUpdated (below) picks this purchase back up once it resolves.
+  if (transaction && transaction.purchaseState === '0') {
+    showOverlay('Remove Ads', "Your payment is still processing - we'll remove ads automatically as soon as Google Play confirms it, no need to buy again.", 'OK', showShop);
+    return;
+  }
   // Purchase itself succeeded - grant it now, independent of whether acknowledge below succeeds.
-  finishRemoveAdsPurchase();
+  finishRemoveAdsPurchase(transaction && transaction.purchaseToken);
   buildShopCards();
   if (transaction && transaction.purchaseToken) {
-    // Non-consumable: acknowledge (never consume) - an unacknowledged Play Billing purchase is
-    // auto-refunded after 3 days, and consuming a non-consumable would let it be bought again.
-    const acked = await acknowledgeWithRetries(Billing, transaction.purchaseToken);
-    if (!acked) {
-      showOverlay('Remove Ads', "Your purchase went through and ads are removed, but we couldn't confirm it with Google Play. If anything looks off later, tap Restore Purchases in Settings.", 'OK', showShop);
-      return;
+    const serverResult = await verifyPurchaseServerSide(REMOVE_ADS_PRODUCT_ID, transaction.purchaseToken);
+    // A deployed backend already acknowledged this server-side (see functions/index.js) - doing
+    // it again here would just hit Google's "already acknowledged" error for no benefit, so only
+    // fall back to the client-side acknowledge when there's no backend result to trust yet.
+    if (!serverResult) {
+      const acked = await acknowledgeWithRetries(Billing, transaction.purchaseToken);
+      if (!acked) {
+        showOverlay('Remove Ads', "Your purchase went through and ads are removed, but we couldn't confirm it with Google Play. If anything looks off later, tap Restore Purchases in Settings.", 'OK', showShop);
+        return;
+      }
     }
   }
   showOverlay('Remove Ads', 'Ads removed - thanks for your support!', 'Nice', showShop);
@@ -3139,16 +3182,28 @@ async function buyCoinsTopUp() {
     showOverlay(cancelled ? '250 Coins' : 'Purchase failed', cancelled ? 'Purchase cancelled.' : 'Something went wrong completing that purchase. Please try again.', 'OK', showShop);
     return;
   }
+  // See the matching check in buyRemoveAds() - purchaseState "0" means real money hasn't
+  // definitely moved yet, so no coins are granted until it resolves (onBillingTransactionUpdated
+  // picks it back up then).
+  if (transaction.purchaseState === '0') {
+    showOverlay('250 Coins', "Your payment is still processing - we'll add your coins automatically as soon as Google Play confirms it, no need to buy again.", 'OK', showShop);
+    return;
+  }
   // Purchase itself succeeded - grant the coins now, independent of whether consume below succeeds.
   addCoins(250);
   renderEcoPills();
-  // Consumable: consume (acknowledges + clears ownership in one native call) so the coins can be
-  // bought again right away - contrast with Remove Ads' acknowledgePurchase above, which never
-  // consumes since that would let a one-time purchase be rebought.
-  const consumed = await consumeWithRetries(Billing, transaction.purchaseToken);
-  if (!consumed) {
-    showOverlay('250 Coins', "Your 250 coins were added! We're still confirming with Google Play in the background - no need to buy again; if Top Up Coins looks unavailable for a bit, that's expected and will clear up shortly.", 'OK', showShop);
-    return;
+  const serverResult = await verifyPurchaseServerSide(COIN_TOPUP_PRODUCT_ID, transaction.purchaseToken);
+  // Same reasoning as buyRemoveAds(): a deployed backend already consumed this server-side, so
+  // only fall back to consuming it here ourselves when there's no backend to trust yet.
+  if (!serverResult) {
+    // Consumable: consume (acknowledges + clears ownership in one native call) so the coins can be
+    // bought again right away - contrast with Remove Ads' acknowledgePurchase above, which never
+    // consumes since that would let a one-time purchase be rebought.
+    const consumed = await consumeWithRetries(Billing, transaction.purchaseToken);
+    if (!consumed) {
+      showOverlay('250 Coins', "Your 250 coins were added! We're still confirming with Google Play in the background - no need to buy again; if Top Up Coins looks unavailable for a bit, that's expected and will clear up shortly.", 'OK', showShop);
+      return;
+    }
   }
   showOverlay('250 Coins', '+250 coins added to your wallet!', 'Nice', showShop);
 }
@@ -3166,10 +3221,10 @@ async function restorePurchasesFlow() {
     const Billing = window.Capacitor.Plugins.NativePurchases;
     await Billing.restorePurchases();
     const { purchases } = await Billing.getPurchases({ productType: 'inapp' });
-    const owned = Array.isArray(purchases) && purchases.some(p => p && p.productIdentifier === REMOVE_ADS_PRODUCT_ID);
-    if (owned && !removeAdsPurchased) finishRemoveAdsPurchase();
+    const ownedPurchase = Array.isArray(purchases) && purchases.find(p => p && p.productIdentifier === REMOVE_ADS_PRODUCT_ID);
+    if (ownedPurchase && !removeAdsPurchased) finishRemoveAdsPurchase(ownedPurchase.purchaseToken);
     renderSettingsToggles();
-    showOverlay('Restore Purchases', owned ? 'Remove Ads has been restored to this account.' : 'No previous purchases found for this account.', 'OK', showSettings);
+    showOverlay('Restore Purchases', ownedPurchase ? 'Remove Ads has been restored to this account.' : 'No previous purchases found for this account.', 'OK', showSettings);
   } catch (e) {
     showOverlay('Restore Purchases', 'Could not reach Google Play. Check your connection and try again.', 'OK', showSettings);
   }
@@ -3195,6 +3250,54 @@ function updateShopBillingPrices() {
       coinsBtn.textContent = coinsProduct.priceString;
     }
   }).catch(() => {});
+}
+// Finishes a transaction that was PENDING at purchase time (buyRemoveAds/buyCoinsTopUp return
+// early without granting anything in that case) and has now resolved - fired by the plugin's own
+// transactionUpdated event, which covers both the app being open when it resolves and Play
+// delivering the update the next time the app launches. Ignores anything already final
+// (isAcknowledged true with no action needed) so this can't double-grant on a replayed event.
+async function onBillingTransactionUpdated(transaction) {
+  if (!transaction || transaction.purchaseState !== '1' || !transaction.purchaseToken) return;
+  const Billing = window.Capacitor.Plugins.NativePurchases;
+  if (transaction.productIdentifier === REMOVE_ADS_PRODUCT_ID) {
+    if (removeAdsPurchased) return;
+    finishRemoveAdsPurchase(transaction.purchaseToken);
+    buildShopCards();
+    const serverResult = await verifyPurchaseServerSide(REMOVE_ADS_PRODUCT_ID, transaction.purchaseToken);
+    if (!serverResult) await acknowledgeWithRetries(Billing, transaction.purchaseToken);
+  } else if (transaction.productIdentifier === COIN_TOPUP_PRODUCT_ID) {
+    if (transaction.isAcknowledged) return; // already consumed by an earlier event/session
+    addCoins(250);
+    renderEcoPills();
+    const serverResult = await verifyPurchaseServerSide(COIN_TOPUP_PRODUCT_ID, transaction.purchaseToken);
+    if (!serverResult) await consumeWithRetries(Billing, transaction.purchaseToken);
+  }
+}
+// Asks the backend whether the Remove Ads purchase we're still showing as owned has since been
+// refunded/voided (Google notifies the backend of this via playRtdn - see functions/index.js -
+// not the device, so this poll is the only way the client ever finds out). A no-op until
+// PURCHASE_ENTITLEMENT_CHECK_ENDPOINT is deployed, and fails open (stays "owned") on any error -
+// losing something a player paid for because of a network hiccup would be worse than the rare
+// case of a revoked purchase taking a bit longer to clear.
+async function checkRemoveAdsEntitlement() {
+  if (!PURCHASE_ENTITLEMENT_CHECK_ENDPOINT || !removeAdsPurchased) return;
+  let purchaseToken;
+  try { purchaseToken = localStorage.getItem('bubbleBlastRemoveAdsToken'); } catch (e) {}
+  if (!purchaseToken) return;
+  try {
+    const res = await fetch(PURCHASE_ENTITLEMENT_CHECK_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ purchaseToken }),
+    });
+    if (!res.ok) return;
+    const { valid } = await res.json();
+    if (valid === false) {
+      removeAdsPurchased = false;
+      try { localStorage.removeItem('bubbleBlastRemoveAds'); localStorage.removeItem('bubbleBlastRemoveAdsToken'); } catch (e) {}
+      buildShopCards();
+    }
+  } catch (e) {}
 }
 // --- hearts: a direct pearl-priced top-up, plus one free ad-watch per real calendar day -
 // same cooldown pattern as the daily gift, but tracked under its own storage key so the two
@@ -4897,6 +5000,10 @@ loadPowerInventory();
 loadSettings();
 initAdsIfAvailable();
 initPlayGamesIfAvailable();
+if (billingAvailable()) {
+  window.Capacitor.Plugins.NativePurchases.addListener('transactionUpdated', onBillingTransactionUpdated).catch(() => {});
+}
+checkRemoveAdsEntitlement();
 runSplash();
 requestAnimationFrame(loop);
 </script>

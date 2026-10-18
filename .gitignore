@@ -9,3 +9,8 @@ android/capacitor-cordova-android-plugins/build/
 android/app/*.jks
 android/app/*.keystore
 android/app/keystore.properties
+
+# Firebase Functions (backend purchase verification)
+.firebase/
+firebase-debug.log
+firebase-debug.*.log

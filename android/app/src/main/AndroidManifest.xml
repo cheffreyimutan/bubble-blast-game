@@ -30,13 +30,14 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Google's official public TEST AdMob app ID - safe to ship as a placeholder since it
-             only ever serves Google's test creatives, never real ads or real revenue. Swap this
-             (and the test ad unit IDs in www/index.html) for real AdMob console IDs before
-             shipping ads for real - using test IDs in production just means no ads ever show. -->
+        <!-- Real AdMob app ID (Pop-A-Boba). Safe to use even while testing: it's the real ad
+             unit IDs in www/index.html (ADMOB_REWARDED_ID/ADMOB_INTERSTITIAL_ID, gated behind
+             ADMOB_USE_PRODUCTION) that actually determine whether a request can return real
+             ads - Google's own guidance is to pair this real App ID with TEST ad unit IDs during
+             development, which is exactly what ADMOB_USE_PRODUCTION=false does. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-4968181628056526~6337403476" />
 
         <meta-data
             android:name="com.google.android.gms.games.APP_ID"

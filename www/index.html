@@ -3086,6 +3086,18 @@ function billingAvailable() {
   try { return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.NativePurchases); }
   catch (e) { return false; }
 }
+// Called once at startup, matching the initAdsIfAvailable/initPlayGamesIfAvailable pattern - the
+// try/catch here is the fix for a real on-device boot hang: addListener() on a native plugin can
+// throw synchronously rather than reject (a browser-only stub can't reproduce this difference),
+// and an earlier version of this call sat unprotected directly in the top-level boot sequence,
+// so that synchronous throw aborted the whole script before runSplash() ever ran - a frozen splash
+// screen with the progress bar stuck at 0%, exactly as a real device hit.
+async function initBillingIfAvailable() {
+  if (!billingAvailable()) return;
+  try {
+    await window.Capacitor.Plugins.NativePurchases.addListener('transactionUpdated', onBillingTransactionUpdated);
+  } catch (e) {}
+}
 function finishRemoveAdsPurchase(purchaseToken) {
   removeAdsPurchased = true;
   try {
@@ -5046,13 +5058,16 @@ fitToViewport();
 loadEconomy();
 loadPowerInventory();
 loadSettings();
-initAdsIfAvailable();
-initPlayGamesIfAvailable();
-if (billingAvailable()) {
-  window.Capacitor.Plugins.NativePurchases.addListener('transactionUpdated', onBillingTransactionUpdated).catch(() => {});
-}
-checkRemoveAdsEntitlement();
+// Splash is purely cosmetic/time-based (see runSplash) and must never depend on any of the
+// feature-init calls below succeeding - called first, and each of those calls is independently
+// try/caught, so a real-device-only failure in one (e.g. a native plugin throwing synchronously
+// rather than rejecting, which a browser-only stub can't reproduce) can never again block the
+// whole boot sequence the way an earlier, unprotected version of this block once did.
 runSplash();
+try { initAdsIfAvailable(); } catch (e) {}
+try { initPlayGamesIfAvailable(); } catch (e) {}
+try { initBillingIfAvailable(); } catch (e) {}
+try { checkRemoveAdsEntitlement(); } catch (e) {}
 requestAnimationFrame(loop);
 </script>
 </body>

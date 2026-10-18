@@ -56,8 +56,13 @@ function setCors(res) {
   res.set('Access-Control-Allow-Headers', 'Content-Type');
 }
 
+// 2nd-gen functions run as the Compute Engine default service account unless told otherwise -
+// NOT the firebase-adminsdk one Play Console was granted access to (see README.md) - so this has
+// to be explicit, or every Play Developer API call fails with a permissions error.
+const PLAY_API_SERVICE_ACCOUNT = 'firebase-adminsdk-fbsvc@pop-a-boba.iam.gserviceaccount.com';
+
 exports.verifyAndGrantPurchase = onRequest(
-  { cors: true },
+  { cors: true, serviceAccount: PLAY_API_SERVICE_ACCOUNT },
   async (req, res) => {
     setCors(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }

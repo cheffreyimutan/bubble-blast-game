@@ -3068,8 +3068,8 @@ const COIN_PACKS = [
 // backend yet", in which case every purchase falls back to the client-only ack/consume below
 // rather than failing outright. A deployed backend verifies each purchase against Google directly
 // and does the acknowledge/consume server-side, which a modified APK can't fake or skip.
-const PURCHASE_VERIFY_ENDPOINT = '';
-const PURCHASE_ENTITLEMENT_CHECK_ENDPOINT = '';
+const PURCHASE_VERIFY_ENDPOINT = 'https://us-central1-pop-a-boba.cloudfunctions.net/verifyAndGrantPurchase';
+const PURCHASE_ENTITLEMENT_CHECK_ENDPOINT = 'https://us-central1-pop-a-boba.cloudfunctions.net/checkEntitlement';
 async function verifyPurchaseServerSide(productId, purchaseToken) {
   if (!PURCHASE_VERIFY_ENDPOINT) return null; // no backend configured yet - caller falls back
   try {

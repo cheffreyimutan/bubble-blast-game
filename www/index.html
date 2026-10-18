@@ -1154,6 +1154,11 @@ function animatedPearlPick(seed, worried) {
 }
 const BOMB = 'bomb', AIRSTRIKE = 'airstrike', TIMED = 'timed', RAINBOW = 'rainbow', STONE = 'stone';
 const GUIDE = 'guide', COLORBOMB = 'colorbomb', SWAP = 'swap';
+// Double Power-Ups: a pre-level topping like GUIDE/COLORBOMB/BOMB/AIRSTRIKE (owned, bought,
+// consumed on pick) rather than a power-up itself, so it's declared here (not in POWER_DEFS -
+// it has no in-game activatePower() case and must never appear in the gameplay power panel)
+// but alongside the other topping keys since powerInventory's default needs it below.
+const DOUBLE_LOADOUT = 'double';
 const SPECIALS = [BOMB, AIRSTRIKE, TIMED, RAINBOW];
 const NONCOLOR = [...SPECIALS, STONE];
 // Rainbow Pearl retired as a player power-up (players consistently picked Bomb/Straw Guide
@@ -1170,7 +1175,7 @@ const POWER_DEFS = [
 ];
 for (const def of POWER_DEFS) { def.imgEl = new Image(); def.imgEl.src = def.img; }
 let armedPower = null;
-let powerInventory = { [GUIDE]: 0, [COLORBOMB]: 0, [BOMB]: 0, [AIRSTRIKE]: 0, [SWAP]: 0 };
+let powerInventory = { [GUIDE]: 0, [COLORBOMB]: 0, [BOMB]: 0, [AIRSTRIKE]: 0, [SWAP]: 0, [DOUBLE_LOADOUT]: 0 };
 let powerPickups = [];
 let guideShotsLeft = 0;
 const BUBBLE_ALPHA = 0.8;
@@ -1407,7 +1412,7 @@ function saveSettings() {
 function loadPowerInventory() {
   try {
     const p = JSON.parse(localStorage.getItem('bubbleBlastPowers'));
-    powerInventory = Object.assign({ [GUIDE]: 0, [COLORBOMB]: 0, [BOMB]: 0, [AIRSTRIKE]: 0, [SWAP]: 0 }, p || {});
+    powerInventory = Object.assign({ [GUIDE]: 0, [COLORBOMB]: 0, [BOMB]: 0, [AIRSTRIKE]: 0, [SWAP]: 0, [DOUBLE_LOADOUT]: 0 }, p || {});
     // Rainbow Pearl was retired in favor of Bomb/Airstrike - fold any old saved Rainbow count
     // into Bomb rather than just discarding it, so a returning player doesn't lose value
     if (p && p.rainbow) { powerInventory[BOMB] = (powerInventory[BOMB] || 0) + p.rainbow; }
@@ -2989,6 +2994,21 @@ function buySinglePower(key) {
   renderPowerPanel();
   showOverlay('Purchased!', `+1 ${def.name} added to your inventory.`, 'Nice', showShop);
 }
+// Priced above a single power-up (SINGLE_POWER_COST) since one Double Power-Ups pick stretches
+// the player's whole stock of every power type for that level, not just one - not part of
+// POWER_DEFS/buySinglePower since it's a topping, not an activatable in-game power (see its
+// declaration above).
+const DOUBLE_LOADOUT_COST = 60;
+function buyDoubleLoadout() {
+  if (!spendPearls(DOUBLE_LOADOUT_COST)) {
+    showOverlay('Not enough pearls', `You need ${DOUBLE_LOADOUT_COST} 🧋 for Double Power-Ups.`, 'OK', showShop);
+    return;
+  }
+  powerInventory[DOUBLE_LOADOUT] = (powerInventory[DOUBLE_LOADOUT] || 0) + 1;
+  savePowerInventory();
+  renderEcoPills();
+  showOverlay('Purchased!', '+1 Double Power-Ups added to your inventory.', 'Nice', showShop);
+}
 const STARTER_PACK_COST = 120;
 function buyStarterPack() {
   if (!spendCoins(STARTER_PACK_COST)) {
@@ -3250,6 +3270,11 @@ function buildShopCards() {
     </div>
 
     <div class="shopSectionLabel">Power-Ups · paid in pearls</div>
+    <div class="shopCard">
+      <div class="icon" style="font-family:'Fredoka',sans-serif;font-weight:700;font-size:18px;color:var(--brown);display:flex;align-items:center;justify-content:center;">2X</div>
+      <div class="info"><div class="title">Double Power-Ups</div><div class="sub">+1 to your inventory - every other use is free</div></div>
+      <button class="buy" style="background:var(--yellow);color:var(--ink);box-shadow:0 4px 0 var(--yellow-sh);" id="buyDoubleBtn">${DOUBLE_LOADOUT_COST} <img src="icons/icon-pearl.png" alt="" style="width:20px;height:16px;object-fit:contain;vertical-align:-3px;"></button>
+    </div>
     ${POWER_DEFS.map(def => `
     <div class="shopCard">
       <div class="icon"><img src="${def.img}" alt=""></div>
@@ -3284,6 +3309,7 @@ function buildShopCards() {
   document.getElementById('buyExchangeBtn').onclick = buyPearlExchange;
   document.getElementById('buyNoAdsBtn').onclick = buyRemoveAds;
   document.getElementById('buyStarterBtn').onclick = buyStarterPack;
+  document.getElementById('buyDoubleBtn').onclick = buyDoubleLoadout;
   el.querySelectorAll('.buySingle').forEach(btn => {
     btn.addEventListener('click', () => buySinglePower(btn.dataset.key));
   });
@@ -3437,8 +3463,13 @@ async function initPlayGamesIfAvailable() {
 // dependency today) purely for one event - adding it would mean a second native plugin to wire
 // through gradle/cap sync for a signal this DOM event already gives us. Only re-renders when
 // Settings is the open screen, so it's a no-op the rest of the time.
+// Skipped while playGamesSignInPending: the interactive sign-in flow's own account-picker
+// Activity ALSO triggers this same hidden->visible transition, and racing this independent
+// isSignedIn()/getPlayer() round-trip against signInToPlayGames()'s own in-flight result can
+// resolve second and stomp a just-completed sign-in back to the signed-out button state.
+// signInToPlayGames()/onPlayGamesSignInResult() are the sole source of truth for that transition.
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden || !playGamesAvailable()) return;
+  if (document.hidden || !playGamesAvailable() || playGamesSignInPending) return;
   refreshPlayGamesState().then(() => { if (appState === 'settings') renderSettingsToggles(); });
 });
 function confirmResetProgress() {
@@ -4250,10 +4281,6 @@ function renderPauseToggles() {
 
 // --- pre-level toppings ---
 const TOPPING_KEYS = [GUIDE, COLORBOMB, BOMB, AIRSTRIKE];
-// a loadout option alongside the real power-up pre-arms, not an inventory item - picking it
-// doesn't consume anything, it just flips doubleLoadoutActive on for the level (see
-// consumePower() above)
-const DOUBLE_LOADOUT = 'double';
 let toppingsLevel = null, toppingsSelected = null;
 function openToppings(level) {
   toppingsLevel = level; toppingsSelected = null;
@@ -4269,13 +4296,14 @@ function openToppings(level) {
 function renderToppingsGrid() {
   const grid = document.getElementById('toppingsGrid');
   grid.innerHTML = '';
-  // Double Power-Ups first - it's the one option every player can always pick regardless of
-  // inventory, so it's the most broadly useful choice and earns the most prominent slot
+  // Double Power-Ups first - same owned/consumed topping as the other four (see
+  // DOUBLE_LOADOUT_COST/buyDoubleLoadout below), just with a text badge instead of an icon image
   const doubleOn = toppingsSelected === DOUBLE_LOADOUT;
+  const doubleCount = powerInventory[DOUBLE_LOADOUT] || 0;
   const doubleCard = document.createElement('button');
-  doubleCard.className = 'toppingCard' + (doubleOn ? ' on' : '');
-  doubleCard.innerHTML = `<div class="toppingIcon" style="font-family:'Fredoka',sans-serif;font-weight:700;font-size:20px;color:var(--brown);">2X</div><div class="toppingName">Double Power-Ups</div><div class="toppingCount">Every other use is free</div>` + (doubleOn ? '<div class="toppingCheck">✓</div>' : '');
-  doubleCard.addEventListener('click', () => { toppingsSelected = doubleOn ? null : DOUBLE_LOADOUT; renderToppingsGrid(); });
+  doubleCard.className = 'toppingCard' + (doubleOn ? ' on' : '') + (doubleCount <= 0 ? ' disabled' : '');
+  doubleCard.innerHTML = `<div class="toppingIcon" style="font-family:'Fredoka',sans-serif;font-weight:700;font-size:20px;color:var(--brown);">2X</div><div class="toppingName">Double Power-Ups</div><div class="toppingCount">${doubleCount} owned</div>` + (doubleOn ? '<div class="toppingCheck">✓</div>' : '');
+  if (doubleCount > 0) doubleCard.addEventListener('click', () => { toppingsSelected = doubleOn ? null : DOUBLE_LOADOUT; renderToppingsGrid(); });
   grid.appendChild(doubleCard);
   for (const key of TOPPING_KEYS) {
     const def = POWER_DEFS.find(d => d.key === key);
@@ -4296,14 +4324,16 @@ function confirmToppingsStart() {
   const level = toppingsLevel, selection = toppingsSelected;
   document.getElementById('toppingsOverlay').style.display = 'none';
   startLevel(level);
+  if (selection) {
+    powerInventory[selection] = Math.max(0, (powerInventory[selection] || 0) - 1);
+    savePowerInventory();
+  }
   if (selection === DOUBLE_LOADOUT) {
     // set after startLevel() on purpose - resetRuntimeState() (called from inside it) clears
     // this flag along with everything else per-level, same reason armedPower is set after too
     doubleLoadoutActive = true;
     renderPowerPanel();
   } else if (selection) {
-    powerInventory[selection] = Math.max(0, (powerInventory[selection] || 0) - 1);
-    savePowerInventory();
     armedPower = selection;
     renderPowerPanel();
   }

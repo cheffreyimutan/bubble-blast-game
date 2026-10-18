@@ -3095,6 +3095,13 @@ function finishRemoveAdsPurchase(purchaseToken) {
     if (purchaseToken) localStorage.setItem('bubbleBlastRemoveAdsToken', purchaseToken);
   } catch (e) {}
 }
+// Counterpart to finishRemoveAdsPurchase() - used when a purchase that was optimistically granted
+// turns out not to hold up (backend verification explicitly rejects the token, or
+// checkRemoveAdsEntitlement() finds it's been revoked/refunded).
+function revokeRemoveAdsPurchase() {
+  removeAdsPurchased = false;
+  try { localStorage.removeItem('bubbleBlastRemoveAds'); localStorage.removeItem('bubbleBlastRemoveAdsToken'); } catch (e) {}
+}
 // WHY: purchaseProduct() resolving means Google Play already charged the user and recorded the
 // purchase - acknowledgePurchase()/consumePurchase() afterward are just finishing steps. If one of
 // those throws (e.g. a transient network blip right after a real charge), treating it the same as
@@ -3150,10 +3157,20 @@ async function buyRemoveAds() {
     return;
   }
   // Purchase itself succeeded - grant it now, independent of whether acknowledge below succeeds.
+  // (Reconsidered below if the backend explicitly rejects the token as invalid/fraudulent.)
   finishRemoveAdsPurchase(transaction && transaction.purchaseToken);
   buildShopCards();
   if (transaction && transaction.purchaseToken) {
     const serverResult = await verifyPurchaseServerSide(REMOVE_ADS_PRODUCT_ID, transaction.purchaseToken);
+    // The backend actively said this token is invalid/fraudulent (not just "couldn't reach it") -
+    // a modified client could fabricate a purchaseProduct() result with a bogus token, and this is
+    // the one place that can be caught, so revoke the optimistic grant above rather than trust it.
+    if (serverResult && serverResult.verified === false) {
+      revokeRemoveAdsPurchase();
+      buildShopCards();
+      showOverlay('Remove Ads', "We couldn't verify this purchase with Google Play, so it hasn't been applied. If you were charged, try Restore Purchases in Settings or contact support.", 'OK', showShop);
+      return;
+    }
     // A deployed backend already acknowledged this server-side (see functions/index.js) - doing
     // it again here would just hit Google's "already acknowledged" error for no benefit, so only
     // fall back to the client-side acknowledge when there's no backend result to trust yet.
@@ -3200,9 +3217,20 @@ async function buyCoinPack(pack) {
     return;
   }
   // Purchase itself succeeded - grant the coins now, independent of whether consume below succeeds.
+  // (Reconsidered below if the backend explicitly rejects the token as invalid/fraudulent.)
   addCoins(pack.coins);
   renderEcoPills();
   const serverResult = await verifyPurchaseServerSide(pack.productId, transaction.purchaseToken);
+  // Same reasoning as buyRemoveAds(): the backend actively rejecting this token (not just being
+  // unreachable) means a modified client likely fabricated the purchase result - claw back the
+  // optimistic grant. Clamped at 0 since the player may have already spent some of it.
+  if (serverResult && serverResult.verified === false) {
+    economy.coins = Math.max(0, economy.coins - pack.coins);
+    saveEconomy();
+    renderEcoPills();
+    showOverlay(label, "We couldn't verify this purchase with Google Play, so it hasn't been applied. If you were charged, please contact support.", 'OK', showShop);
+    return;
+  }
   // Same reasoning as buyRemoveAds(): a deployed backend already consumed this server-side, so
   // only fall back to consuming it here ourselves when there's no backend to trust yet.
   if (!serverResult) {
@@ -3275,12 +3303,19 @@ async function onBillingTransactionUpdated(transaction) {
     finishRemoveAdsPurchase(transaction.purchaseToken);
     buildShopCards();
     const serverResult = await verifyPurchaseServerSide(REMOVE_ADS_PRODUCT_ID, transaction.purchaseToken);
+    if (serverResult && serverResult.verified === false) { revokeRemoveAdsPurchase(); buildShopCards(); return; }
     if (!serverResult) await acknowledgeWithRetries(Billing, transaction.purchaseToken);
   } else if (pack) {
     if (transaction.isAcknowledged) return; // already consumed by an earlier event/session
     addCoins(pack.coins);
     renderEcoPills();
     const serverResult = await verifyPurchaseServerSide(pack.productId, transaction.purchaseToken);
+    if (serverResult && serverResult.verified === false) {
+      economy.coins = Math.max(0, economy.coins - pack.coins);
+      saveEconomy();
+      renderEcoPills();
+      return;
+    }
     if (!serverResult) await consumeWithRetries(Billing, transaction.purchaseToken);
   }
 }
@@ -3304,8 +3339,7 @@ async function checkRemoveAdsEntitlement() {
     if (!res.ok) return;
     const { valid } = await res.json();
     if (valid === false) {
-      removeAdsPurchased = false;
-      try { localStorage.removeItem('bubbleBlastRemoveAds'); localStorage.removeItem('bubbleBlastRemoveAdsToken'); } catch (e) {}
+      revokeRemoveAdsPurchase();
       buildShopCards();
     }
   } catch (e) {}

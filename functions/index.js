@@ -83,14 +83,39 @@ exports.verifyAndGrantPurchase = onRequest(
         res.json({ verified: true, alreadyProcessed: true, productId: existing.data().productId });
         return;
       }
+    } catch (err) {
+      // Couldn't even check Firestore for a prior record - genuinely "we couldn't verify this",
+      // not "we verified it and it's bad". Non-2xx so the client falls back to its own finishing
+      // logic rather than treating this as a confirmed rejection (see www/index.html's
+      // verifyPurchaseServerSide: only a 2xx response is read as the backend's actual verdict).
+      logger.error('verifyAndGrantPurchase: Firestore lookup failed', { productId, purchaseToken, error: String(err) });
+      res.status(500).json({ verified: false, reason: 'lookup_failed' });
+      return;
+    }
 
-      const publisher = androidPublisher();
-      const { data: purchase } = await publisher.purchases.products.get({
+    const publisher = androidPublisher();
+    let purchase;
+    try {
+      ({ data: purchase } = await publisher.purchases.products.get({
         packageName: PACKAGE_NAME,
         productId,
         token: purchaseToken,
-      });
+      }));
+    } catch (err) {
+      // Google's Play Developer API actively responded that this token/product/package
+      // combination isn't a real purchase (the common case: "purchase not found" for a forged or
+      // stale token) - this IS the verdict, so it's a 200 with verified:false, not an error
+      // status, so the client reads it as an explicit rejection and revokes any optimistic grant
+      // instead of silently keeping it (an earlier version of this returned 502 here, which the
+      // client correctly treats as "couldn't verify" rather than "verification failed" - that
+      // let a forged purchaseProduct() result keep its grant. Fixed after an E2E QA pass caught
+      // it live against this exact deployed function).
+      logger.error('verifyAndGrantPurchase: Play API rejected the token', { productId, purchaseToken, error: String(err) });
+      res.json({ verified: false, reason: 'invalid_token' });
+      return;
+    }
 
+    try {
       // purchaseState: 0 = purchased, 1 = cancelled, 2 = pending. Only 0 is real money received.
       if (purchase.purchaseState !== 0) {
         res.json({ verified: false, reason: purchase.purchaseState === 2 ? 'pending' : 'cancelled' });
@@ -118,11 +143,12 @@ exports.verifyAndGrantPurchase = onRequest(
 
       res.json({ verified: true, productId });
     } catch (err) {
-      // A Google API error here (e.g. "purchase not found") almost always means a forged or
-      // stale token - log it plainly so abuse is visible in the function logs, but don't leak
-      // Google's raw error text back to the (unauthenticated) caller.
-      logger.error('verifyAndGrantPurchase failed', { productId, purchaseToken, error: String(err) });
-      res.status(502).json({ verified: false, reason: 'verification_failed' });
+      // The purchase itself WAS real (products.get succeeded above) - this is a failure
+      // finishing up (Google's consume/acknowledge call, or the Firestore write), not a rejection
+      // of the purchase. Non-2xx so the client falls back to finishing it client-side instead of
+      // wrongly revoking a legitimate purchase.
+      logger.error('verifyAndGrantPurchase: finishing steps failed', { productId, purchaseToken, error: String(err) });
+      res.status(500).json({ verified: false, reason: 'finish_failed' });
     }
   }
 );

@@ -14,12 +14,11 @@
 //     www/index.html) to ask "is the purchase I'm still showing as owned actually still valid?",
 //     which is what makes playRtdn's revocation actually take effect client-side.
 //
-// Deploy with: firebase deploy --only functions (after `firebase use <project-id>` and setting
-// the PLAY_SERVICE_ACCOUNT_KEY secret - see README.md in this directory).
+// Deploy with: firebase deploy --only functions (after `firebase use <project-id>` and granting
+// this project's default service account Play Console access - see README.md in this directory).
 
 const { onRequest } = require('firebase-functions/v2/https');
 const { onMessagePublished } = require('firebase-functions/v2/pubsub');
-const { defineSecret } = require('firebase-functions/params');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const { google } = require('googleapis');
@@ -36,19 +35,14 @@ const REMOVE_ADS_PRODUCT_ID = 'remove_ads';
 const COIN_PACK_PRODUCT_IDS = new Set(['coins_100', 'coins_250']);
 const KNOWN_PRODUCT_IDS = new Set([REMOVE_ADS_PRODUCT_ID, ...COIN_PACK_PRODUCT_IDS]);
 
-// The downloaded Play Console service-account JSON key, stored as a Firebase secret so it never
-// touches source control or chat: `firebase functions:secrets:set PLAY_SERVICE_ACCOUNT_KEY` and
-// paste the file's contents when prompted (or `firebase functions:secrets:set PLAY_SERVICE_ACCOUNT_KEY < keyfile.json`).
-const playServiceAccountKey = defineSecret('PLAY_SERVICE_ACCOUNT_KEY');
-
+// No key file, no secret - this function runs AS this project's own default service account
+// (firebase-adminsdk-fbsvc@<project-id>.iam.gserviceaccount.com), and that identity was granted
+// Play Console access directly (Users and permissions > Invite new users, see README.md). Google
+// Auth Library picks this up automatically from the Cloud Functions runtime environment.
 let cachedAndroidPublisher = null;
 function androidPublisher() {
   if (cachedAndroidPublisher) return cachedAndroidPublisher;
-  const credentials = JSON.parse(playServiceAccountKey.value());
-  const auth = new google.auth.GoogleAuth({
-    credentials,
-    scopes: ['https://www.googleapis.com/auth/androidpublisher'],
-  });
+  const auth = new google.auth.GoogleAuth({ scopes: ['https://www.googleapis.com/auth/androidpublisher'] });
   cachedAndroidPublisher = google.androidpublisher({ version: 'v3', auth });
   return cachedAndroidPublisher;
 }
@@ -63,7 +57,7 @@ function setCors(res) {
 }
 
 exports.verifyAndGrantPurchase = onRequest(
-  { secrets: [playServiceAccountKey], cors: true },
+  { cors: true },
   async (req, res) => {
     setCors(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }

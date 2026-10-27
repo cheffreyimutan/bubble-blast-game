@@ -8,13 +8,13 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        // Must run before super.onCreate() per the EdgeToEdge contract. Targeting SDK 35+
-        // makes Android 15 enforce edge-to-edge by default, but enforcement alone doesn't
-        // reliably dispatch window insets to the WebView on every OEM/version - this call is
-        // what makes env(safe-area-inset-*) in index.html actually populate (see
-        // --scene-safe-top/right/bottom/left and #safeAreaProbe there).
-        EdgeToEdge.enable(this);
         super.onCreate(savedInstanceState);
+        // Called after super.onCreate() (not before) - Capacitor's BridgeActivity installs the
+        // core-splashscreen compat view inside its own onCreate(), and calling this first produced
+        // a phantom extra top bar on at least one tested OS build. Android 15+ (SDK 35+) already
+        // enforces edge-to-edge automatically given this app's targetSdk, so this call's only job
+        // is consistent behavior back to minSdk 24, where it's not automatic.
+        EdgeToEdge.enable(this);
         // Capacitor's default Bridge setup only hides the on-screen zoom control widget
         // (setBuiltInZoomControls) - it never calls setSupportZoom(false), so native
         // pinch-zoom/pan gesture handling stays live underneath the page's own

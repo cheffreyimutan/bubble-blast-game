@@ -2,11 +2,18 @@ package com.cheffrey.popabobba;
 
 import android.os.Bundle;
 import android.webkit.WebSettings;
+import androidx.activity.EdgeToEdge;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Must run before super.onCreate() per the EdgeToEdge contract. Targeting SDK 35+
+        // makes Android 15 enforce edge-to-edge by default, but enforcement alone doesn't
+        // reliably dispatch window insets to the WebView on every OEM/version - this call is
+        // what makes env(safe-area-inset-*) in index.html actually populate (see
+        // --scene-safe-top/right/bottom/left and #safeAreaProbe there).
+        EdgeToEdge.enable(this);
         super.onCreate(savedInstanceState);
         // Capacitor's default Bridge setup only hides the on-screen zoom control widget
         // (setBuiltInZoomControls) - it never calls setSupportZoom(false), so native
